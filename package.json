@@ -1,0 +1,27 @@
+{
+  "name": "astroempires",
+  "version": "0.6.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "test:browser": "node scripts/check-shadow-dom.mjs",
+    "build": "npm run typecheck && node scripts/build-userscript.mjs",
+    "check": "npm run typecheck && npm test && node scripts/build-userscript.mjs --check && node --check dist/astroempires.user.js"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vite-plugin-monkey": "8.1.1"
+  },
+  "dependencies": {
+    "@primevue/core": "4.5.5",
+    "primevue": "4.5.5",
+    "vue": "3.5.45"
+  }
+}
