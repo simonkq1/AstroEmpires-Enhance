@@ -59,11 +59,16 @@ export function parseFleetUnit(nameText: string, quantityText: string, includeDe
     const quantity = Number(count.replaceAll(',', ''));
     if (!Number.isSafeInteger(quantity) || quantity <= 0) return;
 
+    return { ...identifyFleetUnit(name, includeDefenses), quantity };
+}
+
+export function identifyFleetUnit(nameText: string, includeDefenses = true): Omit<FleetUnit, 'quantity'> {
+    const name = nameText.trim();
     const normalizedName = name.toLowerCase();
     const catalog = includeDefenses ? shipsAndDefenses : ships;
     const [english = name, chinese = name, code] = catalog.find(([en, zh]) =>
         en.toLowerCase() === normalizedName || zh === name) ?? [];
-    return { name, english, chinese, quantity, code };
+    return { name, english, chinese, code };
 }
 
 export function formatFleetTsv(units: readonly FleetUnit[], language: FleetLanguage): string {

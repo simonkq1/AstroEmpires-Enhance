@@ -2,6 +2,8 @@ import { readCombatTechnologies, type FleetUnitRow } from './combat.ts';
 import { parseFleetUnit } from './fleet.ts';
 import { mountFleetArrival } from './ui/fleet-arrival.ts';
 import { calculatorLabel, mountFleetActions, panelId } from './ui/fleet-toolbar.ts';
+import { mountReportAnalyzer } from './ui/report-analyzer.ts';
+import { initializeReportCopy } from './ui/report-copy.ts';
 
 function initializeFleetActions(): void {
     console.debug('[Astro Empires] 腳本已載入');
@@ -23,7 +25,8 @@ function initializeFleetActions(): void {
     }
 
     const attack = params.get('attack');
-    if (location.pathname !== '/combat.aspx' || (attack !== 'base' && attack !== 'fleet')) return;
+    const validAttack = attack === 'base' || attack === 'fleet' || /^[1-9]\d*$/.test(attack ?? '');
+    if (location.pathname !== '/combat.aspx' || !validAttack) return;
 
     const attackTable = document.querySelector<HTMLTableElement>('table.battle-report_attack');
     const defenseTable = document.querySelector<HTMLTableElement>('table.battle-report_defense');
@@ -53,4 +56,8 @@ function readUnitRows(table: HTMLTableElement | null, includeDefenses = false): 
     return unitRows;
 }
 
-initializeFleetActions();
+if (location.hostname === 'borealis.astroempires.com') {
+    mountReportAnalyzer();
+    initializeFleetActions();
+    if (['/messages.aspx', '/board.aspx', '/combat.aspx'].includes(location.pathname)) initializeReportCopy();
+}

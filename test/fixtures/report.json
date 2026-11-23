@@ -1,0 +1,4 @@
+{
+  "information": "[b]战斗报告[/b]\n位置：[url=https://borealis.astroempires.com/map.aspx?loc=B40:82:48:31]基地 (B40:82:48:31)[/url]\n时间：2026-11-22 20:59:03\n服务器：Borealis\n[b]攻击舰队[/b]\n玩家：[url=https://borealis.astroempires.com/profile.aspx?player=1]攻击玩家[/url]   等级 55.97\n舰队名称：Fleet 378\n[b]防御舰队[/b]\n玩家：[url=https://borealis.astroempires.com/profile.aspx?player=2]防御玩家[/url]   等级 59.87\n舰队名称：&#x20;[b](被摧毁)[/b]\n基地：28089\n初始防御：[b]0.03%[/b]\n战后防御：[b]0%[/b]\n指挥中心：5\n指挥官：Darin Rigel (生产精通 14)\n\n",
+  "tables": "[b]攻击舰队[/b]\n[code]\n舰船\t初始数量\t战后数量\t攻击\t装甲\t护盾\n战斗机\t135878\t135878\t4.3\t4.4\t0\n炮艇\t6601\t6601\t8.6\t11\t0\n驱逐舰\t4629\t4629\t18\t17.6\t0\n离子驱逐舰\t14272\t14272\t22.4\t26.4\t1.75\n战列舰\t469\t469\t256\t281.6\t21\n舰队级母舰\t181\t181\t102.4\t211.2\t17.5\n[/code]\n[b]防御舰队[/b]\n[code]\n舰船\t初始数量\t战后数量\t攻击\t装甲\t护盾\n行星护盾\t0.01\t0\t7.4\t4600\t35\n女神的项链\t0.01\t0\t2400\t2300\t21\n[/code]\n\n"
+}

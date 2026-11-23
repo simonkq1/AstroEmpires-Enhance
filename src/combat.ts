@@ -1,6 +1,6 @@
 import type { CalculatorTechnologies, FleetUnit } from './fleet.ts';
 
-const fieldLabels = {
+export const fieldLabels = {
     ARM: '裝甲', LAS: '激光', MIS: '導彈', PLA: '等離子電漿', SLD: '護盾',
     ION: '離子', PHO: '光子', DIS: '物質裂解', CC: '指揮中心', DfC: '防御精通', TaC: '战术精通',
 } as const;
@@ -70,6 +70,7 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
     const levels: Record<string, number> = {};
     const candidates = new Map<Technology, number | null>();
     const relevant = new Set<keyof typeof fieldLabels>();
+    const reasons: Record<string, string> = {};
     const codes = new Set(observations.map(({ code }) => code));
     const capitalPercent = codes.has('DS') ? 110 : codes.has('LE') ? 105 : 100;
     const fleetAttack = modifiers.CC === null || modifiers.TaC === null
@@ -88,7 +89,10 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
         relevant.add('SLD');
         if (defense) {
             relevant.add('DfC');
-            if (!modifiers.fullDefenses) continue;
+            if (!modifiers.fullDefenses) {
+                for (const key of [weapon, 'ARM', 'SLD']) reasons[key] = '基地防禦受損或初始防禦狀態不明，缺少可用的艦船數值。';
+                continue;
+            }
         } else {
             relevant.add('CC');
             relevant.add('TaC');
@@ -109,9 +113,14 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
 
     const unresolved = [...relevant].filter(key =>
         key === 'CC' || key === 'DfC' || key === 'TaC' ? modifiers[key] === null : levels[key] === undefined);
-    return { levels, unresolved };
+    for (const key of unresolved) {
+        reasons[key] ??= key === 'CC' || key === 'DfC' || key === 'TaC'
+            ? '戰報缺少此項加成資料。' : '缺少可用的非零基礎數值或有效觀測。';
+    }
+    return { levels, unresolved, reasons };
 
     function observe(key: Technology, displayed: number | undefined, base: number, bonus: number | null): void {
+        if (bonus === null) reasons[key] = '缺少指揮中心或指揮官加成資料，請提供完整戰報。';
         if (displayed === undefined || !base || bonus === null) return;
 
         // 加成以兩個整數百分比的乘積表示，避免小數乘法影響四捨五入。
@@ -121,6 +130,7 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
         const matches = level >= 0 && Number.isSafeInteger(scaledResult) &&
             Math.round(scaledResult / 10_000) === Math.round(displayed * 100);
         candidates.set(key, matches && (!candidates.has(key) || candidates.get(key) === level) ? level : null);
+        if (candidates.get(key) === null) reasons[key] = '數值無法回算為整數科技等級，或與其他單位的數值矛盾。';
     }
 }
 
@@ -189,7 +199,7 @@ function readModifiers(report: HTMLTableElement | null): Record<'aT' | 'dT', Com
     return sides;
 }
 
-function readCommander(value: string): Pick<CombatModifiers, 'DfC' | 'TaC'> {
+export function readCommander(value: string): Pick<CombatModifiers, 'DfC' | 'TaC'> {
     if (/^(?:[-–—]|none|无|無)?$/i.test(value)) return { DfC: 0, TaC: 0 };
 
     const match = value.match(/(?:^|[(（]\s*)([^()（）]+?)\s*(\d+)\s*[级級]?\s*[)）]?$/);
@@ -205,12 +215,12 @@ function readCommander(value: string): Pick<CombatModifiers, 'DfC' | 'TaC'> {
     return { DfC: null, TaC: null };
 }
 
-function readLevel(value: string): number | null {
+export function readLevel(value: string): number | null {
     const level = readNumber(value);
     return level !== undefined && Number.isSafeInteger(level) ? level : null;
 }
 
-function readNumber(text: string | undefined): number | undefined {
+export function readNumber(text: string | undefined): number | undefined {
     const value = text?.trim() ?? '';
     if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(value)) return;
     const number = Number(value.replaceAll(',', ''));

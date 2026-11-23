@@ -1,13 +1,12 @@
 // ==UserScript==
 // @name         Astro Empires 工具腳本
 // @namespace    astroempires-tools
-// @version      0.6.2
+// @version      0.7.0
 // @author       simonkq1
-// @description  在 Borealis 的艦隊詳情與戰鬥頁複製資料並匯入 AEBits，並在移動頁預測抵達時間
+// @description  在 Borealis 提供戰報 BBCode 轉換與分析、艦隊資料複製、AEBits 匯入與抵達時間預測
 // @downloadURL  https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
 // @updateURL    https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
-// @match        https://borealis.astroempires.com/fleet.aspx*
-// @match        https://borealis.astroempires.com/combat.aspx*
+// @match        https://borealis.astroempires.com/*
 // @require      https://cdn.jsdelivr.net/npm/vue@3.5.45/dist/vue.runtime.global.prod.js
 // @grant        none
 // @run-at       document-idle
@@ -217,6 +216,7 @@
 		const levels = {};
 		const candidates = new Map();
 		const relevant = new Set();
+		const reasons = {};
 		const codes = new Set(observations.map(({ code }) => code));
 		const capitalPercent = codes.has("DS") ? 110 : codes.has("LE") ? 105 : 100;
 		const fleetAttack = modifiers.CC === null || modifiers.TaC === null ? null : capitalPercent * (100 + 5 * modifiers.CC + modifiers.TaC);
@@ -232,7 +232,14 @@
 			relevant.add("SLD");
 			if (defense) {
 				relevant.add("DfC");
-				if (!modifiers.fullDefenses) continue;
+				if (!modifiers.fullDefenses) {
+					for (const key of [
+						weapon,
+						"ARM",
+						"SLD"
+					]) reasons[key] = "基地防禦受損或初始防禦狀態不明，缺少可用的艦船數值。";
+					continue;
+				}
 			} else {
 				relevant.add("CC");
 				relevant.add("TaC");
@@ -250,17 +257,22 @@
 			const level = modifiers[key];
 			if (level !== null && level > 0) levels[key] = level;
 		}
+		const unresolved = [...relevant].filter((key) => key === "CC" || key === "DfC" || key === "TaC" ? modifiers[key] === null : levels[key] === void 0);
+		for (const key of unresolved) reasons[key] ??= key === "CC" || key === "DfC" || key === "TaC" ? "戰報缺少此項加成資料。" : "缺少可用的非零基礎數值或有效觀測。";
 		return {
 			levels,
-			unresolved: [...relevant].filter((key) => key === "CC" || key === "DfC" || key === "TaC" ? modifiers[key] === null : levels[key] === void 0)
+			unresolved,
+			reasons
 		};
 		function observe(key, displayed, base, bonus) {
+			if (bonus === null) reasons[key] = "缺少指揮中心或指揮官加成資料，請提供完整戰報。";
 			if (displayed === void 0 || !base || bonus === null) return;
 			const scaledBase = base * bonus;
 			const level = Math.round((displayed * 1e4 / scaledBase - 1) * 20);
 			const scaledResult = scaledBase * (100 + 5 * level);
 			const matches = level >= 0 && Number.isSafeInteger(scaledResult) && Math.round(scaledResult / 1e4) === Math.round(displayed * 100);
 			candidates.set(key, matches && (!candidates.has(key) || candidates.get(key) === level) ? level : null);
+			if (candidates.get(key) === null) reasons[key] = "數值無法回算為整數科技等級，或與其他單位的數值矛盾。";
 		}
 	}
 	function readCombatTechnologies(report, attacker, defender) {
@@ -528,13 +540,19 @@
 		if (!name || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(count)) return;
 		const quantity = Number(count.replaceAll(",", ""));
 		if (!Number.isSafeInteger(quantity) || quantity <= 0) return;
+		return {
+			...identifyFleetUnit(name, includeDefenses),
+			quantity
+		};
+	}
+	function identifyFleetUnit(nameText, includeDefenses = true) {
+		const name = nameText.trim();
 		const normalizedName = name.toLowerCase();
 		const [english = name, chinese = name, code] = (includeDefenses ? shipsAndDefenses : ships).find(([en, zh]) => en.toLowerCase() === normalizedName || zh === name) ?? [];
 		return {
 			name,
 			english,
 			chinese,
-			quantity,
 			code
 		};
 	}
@@ -4783,14 +4801,14 @@ dd {
 		setup(app, mergeKeys(defaultOptions, options));
 	} };
 	var fleet_toolbar_default = ":host {\n    all: initial !important;\n    display: block !important;\n    margin-block-start: 8px !important;\n}\n\n.toolbar {\n    font: 14px/1.45 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n    color-scheme: dark;\n}\n\n.actions,\n.options {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: start;\n    gap: 6px;\n}\n\n.options {\n    margin-block-start: 6px;\n}\n\n[hidden] {\n    display: none !important;\n}\n\n.action {\n    box-sizing: border-box;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    color: #e7f1f6;\n    padding: 5px 10px;\n    font: inherit;\n    cursor: pointer;\n}\n\n.action:hover,\n.action[aria-expanded='true'] {\n    background: #244657;\n}\n\n.action:focus-visible,\n.fallback:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.status:not(:empty) {\n    margin-block-start: 6px;\n    overflow-wrap: anywhere;\n}\n\n.fallback {\n    box-sizing: border-box;\n    display: block;\n    width: 100%;\n    margin-block-start: 6px;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #101e27;\n    color: #e7f1f6;\n    padding: 6px;\n    font: 13px/1.4 ui-monospace, monospace;\n}\n";
-	var panelId = "astro-empires-fleet-actions";
+	var panelId$1 = "astro-empires-fleet-actions";
 	var calculatorLabel = "AEBits战斗计算器";
 	var languages = [["chinese", "簡體中文"], ["english", "英文"]];
 	function mountFleetActions(table, sources, calculators, readTechnologies) {
 		const availableSources = sources.filter(({ units }) => units.length);
 		if (!availableSources.length) return;
 		const host = document.createElement("div");
-		host.id = panelId;
+		host.id = panelId$1;
 		const shadow = host.attachShadow({ mode: "open" });
 		const style = document.createElement("style");
 		style.textContent = fleet_toolbar_default;
@@ -4819,8 +4837,8 @@ dd {
 				});
 			}
 			function menu(id, label, choices) {
-				const triggerId = `${panelId}-${id}-trigger`;
-				const optionsId = `${panelId}-${id}-options`;
+				const triggerId = `${panelId$1}-${id}-trigger`;
+				const optionsId = `${panelId$1}-${id}-options`;
 				const open = expanded.value === id;
 				return (0, vue.h)("div", [actionButton(label, () => {
 					expanded.value = open ? null : id;
@@ -4887,6 +4905,421 @@ dd {
 			ripple: false
 		}).mount(container);
 	}
+	function analyzeReport(text) {
+		const createSide = () => ({
+			observations: [],
+			modifiers: {
+				CC: null,
+				TaC: null,
+				DfC: null,
+				fullDefenses: false
+			},
+			hasInformation: false,
+			warnings: [],
+			units: [],
+			importErrors: []
+		});
+		const sides = {
+			attacker: createSide(),
+			defender: createSide()
+		};
+		let side;
+		let inUnits = false;
+		const parsed = readBbcodeRows(text);
+		for (const { cells, inCode } of parsed.rows) {
+			if (!inCode) inUnits = false;
+			const label = cells[0].toLowerCase();
+			if (/^(?:攻击舰队|attack force)$/.test(label) || /^(?:防御舰队|defensive force)$/.test(label)) {
+				side = /^(?:攻击舰队|attack force)$/.test(label) ? "attacker" : "defender";
+				inUnits = false;
+				continue;
+			}
+			if (!side) continue;
+			const report = sides[side];
+			if (inCode && /^(?:舰船|ships?)$/.test(label)) {
+				inUnits = true;
+				continue;
+			}
+			if (inUnits) {
+				const quantity = readNumber(cells[1]);
+				if (cells.length !== 6 || quantity === void 0 || quantity <= 0) {
+					const reason = cells.length !== 6 ? "兵力列不完整" : "初始數量無效";
+					const warning = `單位「${cells[0] || "未命名單位"}」的${reason}。`;
+					report.warnings.push(warning);
+					report.importErrors.push(warning);
+					continue;
+				}
+				const unit = {
+					...identifyFleetUnit(cells[0]),
+					quantity
+				};
+				const { code } = unit;
+				report.units.push(unit);
+				if (!code) {
+					const warning = `未識別單位「${cells[0]}」，其數值未用於推算。`;
+					report.warnings.push(warning);
+					report.importErrors.push(warning);
+				}
+				const observation = {
+					code,
+					attack: readNumber(cells[3]),
+					armour: readNumber(cells[4]),
+					shield: readNumber(cells[5])
+				};
+				if ([
+					observation.attack,
+					observation.armour,
+					observation.shield
+				].some((value) => value === void 0)) report.warnings.push(`單位「${cells[0]}」的攻擊、裝甲或護盾資料不完整。`);
+				report.observations.push(observation);
+				continue;
+			}
+			if (!/^(?:玩家|player|舰队名称|fleet name|基地|base|初始防御|start defenses|战后防御|end defenses|指挥中心|command centers|指挥官|commander)$/.test(label)) continue;
+			if (!report.hasInformation) {
+				Object.assign(report.modifiers, {
+					CC: 0,
+					TaC: 0,
+					DfC: 0
+				});
+				report.hasInformation = true;
+			}
+			const value = cells[1] ?? "";
+			switch (label) {
+				case "指挥中心":
+				case "command centers":
+					report.modifiers.CC = readLevel(value);
+					break;
+				case "指挥官":
+				case "commander":
+					Object.assign(report.modifiers, readCommander(value));
+					break;
+				case "初始防御":
+				case "start defenses": report.modifiers.fullDefenses = readNumber(value.replace(/[%％]$/, "")) === 100;
+			}
+		}
+		const result = (side) => ({
+			...inferCombatTechnology(side.observations, side.modifiers),
+			count: side.observations.filter((observation) => observation.code).length,
+			warnings: [...new Set(side.warnings)],
+			units: side.units,
+			importErrors: [...new Set(side.importErrors)]
+		});
+		return {
+			attacker: result(sides.attacker),
+			defender: result(sides.defender),
+			error: parsed.error
+		};
+	}
+	function buildReportCalculatorUrl(report) {
+		if (report.error) return { error: report.error };
+		const errors = [...report.attacker.importErrors.map((error) => `攻方${error}`), ...report.defender.importErrors.map((error) => `守方${error}`)];
+		if (errors.length) return { error: `無法匯入，${errors.join(" ")}` };
+		if (!report.attacker.units.length && !report.defender.units.length) return { error: "沒有可匯入的初始兵力。" };
+		const result = buildCalculatorUrl({
+			aS: report.attacker.units,
+			dS: report.defender.units
+		}, {
+			aT: report.attacker.units.length ? report.attacker.levels : {},
+			dT: report.defender.units.length ? report.defender.levels : {}
+		});
+		return "unknownNames" in result ? { error: `無法匯入，未識別單位為 ${result.unknownNames.join("、")}。` } : result;
+	}
+	function readBbcodeRows(text) {
+		const rows = [];
+		let inCode = false;
+		let error = null;
+		for (const part of text.split(/(\[\/?code\])/i)) if (/^\[code\]$/i.test(part)) {
+			if (inCode) error = "BBCode 的 [code] 區塊巢狀或未正確結束。";
+			inCode = true;
+		} else if (/^\[\/code\]$/i.test(part)) {
+			if (!inCode) error = "BBCode 的 [code] 區塊缺少起始標籤。";
+			inCode = false;
+		} else for (const sourceLine of part.split(/\r?\n/)) {
+			const line = cleanCell(sourceLine);
+			if (!line) continue;
+			const cells = inCode ? sourceLine.trim().split(sourceLine.includes("	") ? "	" : / {2,}/).map(cleanCell) : line.split(/[:：](.*)/s).slice(0, 2).map((value) => value.trim());
+			rows.push({
+				cells,
+				inCode
+			});
+		}
+		if (inCode) error = "BBCode 的 [code] 區塊缺少結束標籤。";
+		return {
+			rows,
+			error
+		};
+	}
+	function cleanCell(text) {
+		return text.replace(/\[\/?(?:b|i|u|s|color|size|url|center|left|right)(?:=[^\]\r\n]*)?\]/gi, "").replace(/&(?:nbsp|#x20|#32|#160);/gi, " ").replace(/&#91;/g, "[").replace(/&#93;/g, "]").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+	}
+	var report_analyzer_default = ":host {\n    all: initial !important;\n    position: fixed !important;\n    inset: auto 16px 16px auto !important;\n    z-index: 2147483647 !important;\n    display: block !important;\n    width: 48px !important;\n    height: 48px !important;\n    color-scheme: dark;\n}\n\n* {\n    box-sizing: border-box;\n}\n\ndiv {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n}\n\n[hidden] {\n    display: none !important;\n}\n\nbutton,\ntextarea {\n    font: inherit;\n    color: #e7f1f6;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    padding: 6px 12px;\n}\n\nbutton {\n    cursor: pointer;\n}\n\nbutton:hover {\n    background: #244657;\n}\n\nbutton:focus-visible,\ntextarea:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.trigger {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    width: 48px;\n    height: 48px;\n    border-radius: 50%;\n    font-size: 20px;\n}\n\n.material-icons {\n    font-family: 'Astro Empires Material Icons';\n    font-size: 24px;\n    font-weight: 400;\n    font-style: normal;\n    line-height: 1;\n    letter-spacing: normal;\n    text-transform: none;\n    white-space: nowrap;\n    direction: ltr;\n    font-feature-settings: 'liga';\n}\n\n.feature-list {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    width: max-content;\n    max-width: calc(100vw - 32px);\n}\n\n.panel {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    width: min(440px, calc(100vw - 32px));\n    max-height: calc(100dvh - 92px);\n    overflow: auto;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 16px;\n    background: #101e27;\n    box-shadow: 0 6px 24px #0008;\n    overflow-wrap: anywhere;\n}\n\nheader {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    gap: 8px;\n    margin-bottom: 12px;\n}\n\nh2,\nh3,\nh4,\np {\n    margin: 0 0 8px;\n}\n\nh2 {\n    font-size: 18px;\n}\n\nh3,\nh4 {\n    font-size: 14px;\n}\n\ntextarea {\n    display: block;\n    width: 100%;\n    resize: vertical;\n    min-height: 80px;\n    margin: 4px 0 8px;\n    background: #07131c;\n}\n\n.results,\n.side {\n    margin-top: 16px;\n}\n\ndl {\n    display: grid;\n    grid-template-columns: 1fr max-content;\n    gap: 4px 12px;\n    margin: 0 0 12px;\n}\n\ndd {\n    margin: 0;\n    font-variant-numeric: tabular-nums;\n}\n\nul {\n    margin: 0 0 8px;\n    padding-left: 20px;\n}\n\n.note {\n    color: #afc5d2;\n}\n";
+	var panelId = "astro-empires-report-analyzer";
+	var materialIconsUrl = "https://fonts.gstatic.com/s/materialicons/v145/flUhRq6tzZclQEJ-Vdg-IuiaDsNZ.ttf";
+	function mountReportAnalyzer() {
+		if (document.getElementById(panelId)) return;
+		const host = document.createElement("div");
+		host.id = panelId;
+		const root = host.attachShadow({ mode: "open" });
+		const style = document.createElement("style");
+		style.textContent = report_analyzer_default;
+		const container = document.createElement("div");
+		root.append(style, container);
+		document.body.append(host);
+		(0, vue.createApp)({ setup() {
+			const view = (0, vue.ref)(null);
+			const iconsReady = (0, vue.ref)(false);
+			const text = (0, vue.ref)("");
+			const result = (0, vue.ref)(null);
+			const message = (0, vue.ref)("");
+			const trigger = (0, vue.ref)(null);
+			const analysisButton = (0, vue.ref)(null);
+			const input = (0, vue.ref)(null);
+			new FontFace("Astro Empires Material Icons", `url("${materialIconsUrl}") format("truetype")`, {
+				style: "normal",
+				weight: "400"
+			}).load().then((loaded) => {
+				document.fonts.add(loaded);
+				iconsReady.value = true;
+			}).catch(() => {});
+			async function show(next) {
+				view.value = next;
+				await (0, vue.nextTick)();
+				if (next === "analysis") input.value?.focus();
+				else if (next === "menu") analysisButton.value?.focus();
+				else trigger.value?.focus();
+			}
+			function analyze() {
+				result.value = null;
+				message.value = "";
+				if (!text.value.trim()) {
+					message.value = "請先貼上戰報 BBCode。";
+					return;
+				}
+				const report = analyzeReport(text.value);
+				if (report.error) {
+					message.value = report.error;
+					return;
+				}
+				if (!report.attacker.count && !report.defender.count) {
+					message.value = "沒有可辨識的單位，請貼上含攻守方標題與 [code] 兵力表格的 BBCode。" + [...report.attacker.importErrors, ...report.defender.importErrors].join(" ");
+					return;
+				}
+				result.value = report;
+			}
+			function openCalculator() {
+				if (!result.value) return;
+				const calculator = buildReportCalculatorUrl(result.value);
+				if ("error" in calculator) {
+					message.value = calculator.error;
+					return;
+				}
+				message.value = "";
+				window.open(calculator.url.href, "_blank", "noopener,noreferrer");
+			}
+			const label = (code) => `${fieldLabels[code]} (${code})`;
+			function renderSide(title, side) {
+				return (0, vue.h)("section", { class: "side" }, [
+					(0, vue.h)("h3", title),
+					!side.count ? (0, vue.h)("p", "沒有可辨識的單位資料。") : [
+						Object.keys(side.levels).length ? (0, vue.h)("dl", Object.entries(side.levels).flatMap(([code, level]) => [(0, vue.h)("dt", label(code)), (0, vue.h)("dd", String(level))])) : (0, vue.h)("p", "目前沒有可確認的科技等級。"),
+						side.unresolved.length ? (0, vue.h)("div", [(0, vue.h)("h4", "待確認"), (0, vue.h)("ul", side.unresolved.map((code) => (0, vue.h)("li", `${label(code)} — ${side.reasons[code]}`)))]) : null,
+						(0, vue.h)("p", { class: "note" }, "未列出的科技缺少可用資料。")
+					],
+					side.warnings.length ? (0, vue.h)("ul", side.warnings.map((warning) => (0, vue.h)("li", warning))) : null
+				]);
+			}
+			return () => (0, vue.h)("div", { onKeydown: (event) => {
+				if (event.key === "Escape" && view.value) {
+					event.preventDefault();
+					show(view.value === "analysis" ? "menu" : null);
+				}
+			} }, [
+				(0, vue.h)("div", {
+					id: `${panelId}-menu`,
+					class: "feature-list",
+					hidden: view.value !== "menu",
+					role: "group",
+					"aria-label": "功能選單"
+				}, [(0, vue.h)("button", {
+					ref: analysisButton,
+					type: "button",
+					onClick: () => show("analysis")
+				}, "分析 BBCode")]),
+				(0, vue.h)("section", {
+					id: `${panelId}-panel`,
+					class: "panel",
+					hidden: view.value !== "analysis",
+					role: "dialog",
+					"aria-labelledby": `${panelId}-title`
+				}, [
+					(0, vue.h)("header", [(0, vue.h)("h2", { id: `${panelId}-title` }, "BBCode 戰報分析"), (0, vue.h)("button", {
+						type: "button",
+						"aria-label": "關閉戰報分析",
+						onClick: () => show("menu")
+					}, "關閉")]),
+					(0, vue.h)("label", { for: `${panelId}-input` }, "戰報 BBCode"),
+					(0, vue.h)("textarea", {
+						ref: input,
+						id: `${panelId}-input`,
+						rows: 8,
+						spellcheck: false,
+						value: text.value,
+						placeholder: "貼上完整戰報或攻守方兵力表格的 BBCode",
+						onInput: (event) => {
+							text.value = event.target.value;
+							result.value = null;
+							message.value = "";
+						}
+					}),
+					(0, vue.h)("button", {
+						type: "button",
+						onClick: analyze
+					}, "分析"),
+					(0, vue.h)("p", {
+						role: "status",
+						hidden: !message.value
+					}, message.value),
+					result.value ? (0, vue.h)("div", { class: "results" }, [
+						(0, vue.h)("button", {
+							type: "button",
+							onClick: openCalculator
+						}, "導入 AEBits 戰鬥模擬器"),
+						renderSide("攻方", result.value.attacker),
+						renderSide("守方", result.value.defender)
+					]) : null
+				]),
+				(0, vue.h)("button", {
+					ref: trigger,
+					type: "button",
+					class: "trigger",
+					"aria-label": view.value ? "收合功能選單" : "開啟功能選單",
+					"aria-expanded": String(view.value !== null),
+					"aria-controls": `${panelId}-menu ${panelId}-panel`,
+					onClick: () => show(view.value ? null : "menu")
+				}, [(0, vue.h)("span", {
+					class: iconsReady.value ? "material-icons" : "icon-fallback",
+					"aria-hidden": "true"
+				}, iconsReady.value ? view.value ? "close" : "keyboard_arrow_up" : view.value ? "×" : "↑")])
+			]);
+		} }).mount(container);
+	}
+	var reportTables = new Set([
+		"battle-report_info",
+		"battle-report_attack",
+		"battle-report_defense"
+	]);
+	function reportToBbcode(report, baseUrl) {
+		for (const name of reportTables) if (!report.querySelector(`table.${name}`)) throw new Error("戰報資料不完整，無法轉換。");
+		function serialize(node) {
+			if (node.nodeType === 3) return (node.textContent ?? "").replace(/\s+/g, " ");
+			if (node.nodeType !== 1) return "";
+			const element = node;
+			if (element.matches("script,style")) return "";
+			if (element.tagName === "BR") return "\n";
+			if (element.tagName === "TABLE") return serializeTable(element);
+			const contents = Array.from(element.childNodes, serialize).join("");
+			if (element.matches("b,strong")) return `[b]${contents}[/b]`;
+			if (element.tagName === "A") {
+				const url = new URL(element.getAttribute("href") ?? "", baseUrl);
+				if (url.protocol === "https:" || url.protocol === "http:") return `[url=${url.href.replaceAll("[", "%5B").replaceAll("]", "%5D")}]${contents}[/url]`;
+			}
+			return element.matches("center,div,p") ? `${contents.trim()}\n` : contents;
+		}
+		function serializeTable(table) {
+			const name = [...table.classList].find((value) => reportTables.has(value));
+			if (!name || table.closest(".battle-report") !== report) return "";
+			const rows = Array.from(table.rows).filter((row) => row.closest("table") === table);
+			if (name === "battle-report_info") return rows.map((row) => {
+				const cells = Array.from(row.cells, (cell) => Array.from(cell.childNodes, serialize).join("").trim());
+				return cells.length === 1 ? `[b]${cells[0]}[/b]` : `${cells[0]}：${cells.slice(1).join(" ")}`;
+			}).join("\n") + "\n";
+			let title = "";
+			const lines = [];
+			for (const row of rows) {
+				const cells = Array.from(row.cells, (cell) => cell.textContent.replace(/\s+/g, " ").trim());
+				if (cells.length === 1) title = `[b]${cells[0]}[/b]`;
+				else lines.push(cells.join("	"));
+			}
+			return `${title}\n[code]\n${lines.join("\n")}\n[/code]\n`;
+		}
+		return Array.from(report.childNodes, serialize).join("").replace(/\n{3,}/g, "\n\n").trim();
+	}
+	var marker = "data-astro-empires-report-copy";
+	function initializeReportCopy() {
+		if (document.documentElement.hasAttribute(marker)) return;
+		document.documentElement.setAttribute(marker, "");
+		function attach(report) {
+			if (report.nextElementSibling?.hasAttribute(marker)) return;
+			const host = document.createElement("div");
+			host.setAttribute(marker, "");
+			const root = host.attachShadow({ mode: "open" });
+			const style = document.createElement("style");
+			style.textContent = fleet_toolbar_default;
+			const container = document.createElement("div");
+			container.className = "toolbar";
+			root.append(style, container);
+			report.after(host);
+			(0, vue.createApp)({ setup() {
+				const status = (0, vue.ref)("");
+				const fallback = (0, vue.ref)("");
+				const textarea = (0, vue.ref)(null);
+				let copying = false;
+				async function copy() {
+					if (copying) return;
+					copying = true;
+					fallback.value = "";
+					try {
+						const text = reportToBbcode(report, location.href);
+						try {
+							await navigator.clipboard.writeText(text);
+							status.value = "已複製戰報 BBCode。";
+						} catch {
+							status.value = "無法存取剪貼簿，請手動複製下方的 BBCode。";
+							fallback.value = text;
+							await (0, vue.nextTick)();
+							textarea.value?.focus();
+							textarea.value?.select();
+						}
+					} catch {
+						status.value = "戰報資料不完整，無法轉換。";
+					} finally {
+						copying = false;
+					}
+				}
+				return () => [
+					(0, vue.h)("button", {
+						type: "button",
+						class: "action",
+						onClick: copy
+					}, "複製戰報 BBCode"),
+					(0, vue.h)("div", {
+						class: "status",
+						role: "status"
+					}, status.value),
+					(0, vue.h)("textarea", {
+						ref: textarea,
+						class: "fallback",
+						readonly: true,
+						rows: 6,
+						hidden: !fallback.value,
+						value: fallback.value,
+						"aria-label": "戰報 BBCode"
+					})
+				];
+			} }).mount(container);
+		}
+		function scan(element) {
+			if (element.matches(".battle-report")) attach(element);
+			element.querySelectorAll(".battle-report").forEach(attach);
+		}
+		scan(document.body);
+		new MutationObserver((records) => {
+			for (const record of records) for (const node of record.addedNodes) if (node instanceof Element) scan(node);
+		}).observe(document.body, {
+			childList: true,
+			subtree: true
+		});
+	}
 	function initializeFleetActions() {
 		console.debug("[Astro Empires] 腳本已載入");
 		if (location.hostname !== "borealis.astroempires.com" || document.getElementById("astro-empires-fleet-actions")) return;
@@ -4904,7 +5337,8 @@ dd {
 			return;
 		}
 		const attack = params.get("attack");
-		if (location.pathname !== "/combat.aspx" || attack !== "base" && attack !== "fleet") return;
+		const validAttack = attack === "base" || attack === "fleet" || /^[1-9]\d*$/.test(attack ?? "");
+		if (location.pathname !== "/combat.aspx" || !validAttack) return;
 		const attackTable = document.querySelector("table.battle-report_attack");
 		const defenseTable = document.querySelector("table.battle-report_defense");
 		const lastTable = defenseTable ?? attackTable;
@@ -4937,7 +5371,15 @@ dd {
 		}
 		return unitRows;
 	}
-	initializeFleetActions();
+	if (location.hostname === "borealis.astroempires.com") {
+		mountReportAnalyzer();
+		initializeFleetActions();
+		if ([
+			"/messages.aspx",
+			"/board.aspx",
+			"/combat.aspx"
+		].includes(location.pathname)) initializeReportCopy();
+	}
 })(Vue);
 
 // Third-party licenses
