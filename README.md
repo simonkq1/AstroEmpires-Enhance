@@ -42,6 +42,8 @@
 1. 在 Tampermonkey 選擇「新增腳本」，以 [`dist/astroempires.user.js`](./dist/astroempires.user.js) 的完整內容取代預設範本，再儲存並確認腳本已啟用。
 2. 重新整理 Borealis 的艦隊詳情、戰鬥頁或移動頁，確認表格下方出現工具列或抵達時間預測。
 
+`@updateURL` 與 `@downloadURL` 指向 GitHub `master` 分支的 `dist/astroempires.user.js` 原始檔。新版建置成品發布到該分支後，Tampermonkey 可依版本號檢查及下載更新。
+
 ## 開發與建置
 
 在專案根目錄以 Node.js 24.12 以上版本及 npm 執行以下指令。

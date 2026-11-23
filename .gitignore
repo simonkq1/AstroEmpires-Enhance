@@ -1,3 +1,4 @@
 /node_modules/
 /dist/*
 !/dist/astroempires.user.js
+.DS_Store

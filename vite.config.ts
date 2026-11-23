@@ -4,6 +4,7 @@ import monkey, { cdn } from 'vite-plugin-monkey';
 
 const styleAdapter = normalizePath(fileURLToPath(new URL('./src/ui/primevue-style.ts', import.meta.url)));
 const primeuixSource = normalizePath(fileURLToPath(new URL('./vendor/primeuix', import.meta.url)));
+const userscriptUrl = 'https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js';
 
 export default defineConfig({
     build: {
@@ -38,6 +39,9 @@ export default defineConfig({
         userscript: {
             name: 'Astro Empires 工具腳本',
             namespace: 'astroempires-tools',
+            author: 'simonkq1',
+            updateURL: userscriptUrl,
+            downloadURL: userscriptUrl,
             description: '在 Borealis 的艦隊詳情與戰鬥頁複製資料並匯入 AEBits，並在移動頁預測抵達時間',
             match: ['https://borealis.astroempires.com/fleet.aspx*', 'https://borealis.astroempires.com/combat.aspx*'],
             'run-at': 'document-idle',

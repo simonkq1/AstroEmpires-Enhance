@@ -1,8 +1,11 @@
 // ==UserScript==
 // @name         Astro Empires 工具腳本
 // @namespace    astroempires-tools
-// @version      0.6.1
+// @version      0.6.2
+// @author       simonkq1
 // @description  在 Borealis 的艦隊詳情與戰鬥頁複製資料並匯入 AEBits，並在移動頁預測抵達時間
+// @downloadURL  https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
+// @updateURL    https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
 // @match        https://borealis.astroempires.com/fleet.aspx*
 // @match        https://borealis.astroempires.com/combat.aspx*
 // @require      https://cdn.jsdelivr.net/npm/vue@3.5.45/dist/vue.runtime.global.prod.js
