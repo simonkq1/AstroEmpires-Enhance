@@ -2,7 +2,7 @@ const reportTables = new Set(['battle-report_info', 'battle-report_attack', 'bat
 
 export function reportToBbcode(report: HTMLElement, baseUrl: string): string {
     for (const name of reportTables) {
-        if (!report.querySelector(`table.${name}`)) throw new Error('戰報資料不完整，無法轉換。');
+        if (!report.querySelector(`table.${name}`)) throw new Error('incompleteReport');
     }
 
     function serialize(node: Node): string {

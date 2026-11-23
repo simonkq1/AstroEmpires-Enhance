@@ -1,8 +1,9 @@
 import type { CalculatorTechnologies, FleetUnit } from './fleet.ts';
+import { msg, type Message } from './i18n.ts';
 
 export const fieldLabels = {
-    ARM: '裝甲', LAS: '激光', MIS: '導彈', PLA: '等離子電漿', SLD: '護盾',
-    ION: '離子', PHO: '光子', DIS: '物質裂解', CC: '指揮中心', DfC: '防御精通', TaC: '战术精通',
+    ARM: msg('ARM'), LAS: msg('LAS'), MIS: msg('MIS'), PLA: msg('PLA'), SLD: msg('SLD'),
+    ION: msg('ION'), PHO: msg('PHO'), DIS: msg('DIS'), CC: msg('CC'), DfC: msg('DfC'), TaC: msg('TaC'),
 } as const;
 
 type Modifier = 'CC' | 'DfC' | 'TaC';
@@ -70,7 +71,7 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
     const levels: Record<string, number> = {};
     const candidates = new Map<Technology, number | null>();
     const relevant = new Set<keyof typeof fieldLabels>();
-    const reasons: Record<string, string> = {};
+    const reasons: Record<string, Message> = {};
     const codes = new Set(observations.map(({ code }) => code));
     const capitalPercent = codes.has('DS') ? 110 : codes.has('LE') ? 105 : 100;
     const fleetAttack = modifiers.CC === null || modifiers.TaC === null
@@ -90,7 +91,7 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
         if (defense) {
             relevant.add('DfC');
             if (!modifiers.fullDefenses) {
-                for (const key of [weapon, 'ARM', 'SLD']) reasons[key] = '基地防禦受損或初始防禦狀態不明，缺少可用的艦船數值。';
+                for (const key of [weapon, 'ARM', 'SLD']) reasons[key] = msg('damagedDefense');
                 continue;
             }
         } else {
@@ -115,12 +116,12 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
         key === 'CC' || key === 'DfC' || key === 'TaC' ? modifiers[key] === null : levels[key] === undefined);
     for (const key of unresolved) {
         reasons[key] ??= key === 'CC' || key === 'DfC' || key === 'TaC'
-            ? '戰報缺少此項加成資料。' : '缺少可用的非零基礎數值或有效觀測。';
+            ? msg('missingModifier') : msg('missingObservation');
     }
     return { levels, unresolved, reasons };
 
     function observe(key: Technology, displayed: number | undefined, base: number, bonus: number | null): void {
-        if (bonus === null) reasons[key] = '缺少指揮中心或指揮官加成資料，請提供完整戰報。';
+        if (bonus === null) reasons[key] = msg('missingAttackBonus');
         if (displayed === undefined || !base || bonus === null) return;
 
         // 加成以兩個整數百分比的乘積表示，避免小數乘法影響四捨五入。
@@ -130,7 +131,7 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
         const matches = level >= 0 && Number.isSafeInteger(scaledResult) &&
             Math.round(scaledResult / 10_000) === Math.round(displayed * 100);
         candidates.set(key, matches && (!candidates.has(key) || candidates.get(key) === level) ? level : null);
-        if (candidates.get(key) === null) reasons[key] = '數值無法回算為整數科技等級，或與其他單位的數值矛盾。';
+        if (candidates.get(key) === null) reasons[key] = msg('conflictingValues');
     }
 }
 
@@ -138,20 +139,20 @@ export function readCombatTechnologies(
     report: HTMLTableElement | null,
     attacker: readonly FleetUnitRow[],
     defender: readonly FleetUnitRow[],
-): { technologies: CalculatorTechnologies; notice: string } {
+): { technologies: CalculatorTechnologies; notice: Message | null } {
     const modifiers = readModifiers(report);
     const results = {
         aT: inferCombatTechnology(attacker.map(readObservation), modifiers.aT),
         dT: inferCombatTechnology(defender.map(readObservation), modifiers.dT),
     };
-    const pending = [];
-    for (const [key, side] of [['aT', '攻方'], ['dT', '守方']] as const) {
+    const pending: Message[] = [];
+    for (const [key, side] of [['aT', 'attacker'], ['dT', 'defender']] as const) {
         const labels = results[key].unresolved.map(field => fieldLabels[field]);
-        if (labels.length) pending.push(`${side}（${labels.join('、')}）`);
+        if (labels.length) pending.push(msg('sideFields', { side: msg(side), fields: labels }));
     }
     return {
         technologies: { aT: results.aT.levels, dT: results.dT.levels },
-        notice: pending.length ? `請在 AEBits 手動確認${pending.join('與')}的欄位。` : '',
+        notice: pending.length ? msg('manualConfirm', { sides: pending }) : null,
     };
 }
 

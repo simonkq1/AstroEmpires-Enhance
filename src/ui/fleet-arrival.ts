@@ -1,4 +1,5 @@
 import { createApp, h, ref } from 'vue';
+import { t } from '../i18n.ts';
 import { formatLocalTime, formatServerTime, parseServerTime, parseTravelDuration } from '../arrival.ts';
 
 const arrivalPanelId = 'astro-empires-fleet-arrival';
@@ -34,10 +35,6 @@ export function mountFleetArrival(): void {
     const table = duration?.closest('table');
     if (!duration || !destination || !table) return;
 
-    const chinese = document.getElementById('translation_h')?.textContent.trim() === '小时';
-    const labels = chinese
-        ? { title: '预计到达', server: '服务器时间', local: '本地时间', unavailable: '无法取得', waiting: '等待游戏计算航行时间。' }
-        : { title: 'Estimated arrival', server: 'Server time', local: 'Local time', unavailable: 'Unavailable', waiting: 'Waiting for the game to calculate travel time.' };
     const host = document.createElement('div');
     host.id = arrivalPanelId;
     const shadow = host.attachShadow({ mode: 'open' });
@@ -48,7 +45,7 @@ export function mountFleetArrival(): void {
     shadow.append(style, container);
     table.after(host);
 
-    const arrival = ref<{ server: string; local: string } | null>(null);
+    const arrival = ref<{ server: string | null; local: string } | null>(null);
     let serverClock = '';
     let serverSample: { timestamp: number; sampledAt: number } | null = null;
     let calculatedDestination = destination.value;
@@ -71,16 +68,16 @@ export function mountFleetArrival(): void {
         const durationMs = seconds * 1000;
         const local = formatLocalTime(Date.now() + durationMs);
         const server = serverSample && formatServerTime(serverSample.timestamp + (now - serverSample.sampledAt) + durationMs);
-        arrival.value = local === null ? null : { server: server ?? labels.unavailable, local };
+        arrival.value = local === null ? null : { server, local };
     };
 
     createApp({
         render: () => [
-            h('strong', labels.title),
+            h('strong', t('estimatedArrival')),
             arrival.value ? h('dl', [
-                h('dt', labels.server), h('dd', arrival.value.server),
-                h('dt', labels.local), h('dd', arrival.value.local),
-            ]) : h('div', labels.waiting),
+                h('dt', t('serverTime')), h('dd', arrival.value.server ?? t('unavailable')),
+                h('dt', t('localTime')), h('dd', arrival.value.local),
+            ]) : h('div', t('waitingTravel')),
         ],
     }).mount(container);
 

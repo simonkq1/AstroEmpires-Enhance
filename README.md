@@ -15,6 +15,16 @@
 
 [Tampermonkey 官方文件](https://www.tampermonkey.net/documentation.php?locale=en)
 
+## 語言與設定
+
+介面支援簡體中文與英文。首次使用或讀不到有效語言紀錄時，畫面中央會顯示「选择语言 / Choose language」，預選英文。選擇後按「保存 / Save」，或按「稍后 / Later」、Esc 暫用英文，下次載入時再次選擇。
+
+日後可從右下角功能清單開啟「设置 / Settings」，在「显示 / Display」內選擇語言並儲存。當頁工具列、分析結果、提示與抵達時間標籤會立即切換，戰報輸入及數值會保留。取消會捨棄未儲存的選擇。
+
+設定保存在目前瀏覽器的 Borealis 網站儲存空間，使用 `astro-empires-settings` 鍵。無法儲存時會顯示提示，所選語言仍套用於本頁。
+
+介面語言與複製艦隊名稱的語言可分別選擇，戰報 BBCode 保留來源頁面的文字。AEBits 匯入依設定開啟中文或英文模擬器。
+
 ## 戰報 BBCode 轉換與分析
 
 在 Borealis 的訊息頁（`messages.aspx`）、公會面板（`board.aspx`）與戰鬥頁（`combat.aspx`），每份戰報下方提供「複製戰報 BBCode」。點擊可複製該份戰報的資訊、連結、兵力及戰果，剪貼簿失敗時會顯示可手動複製的文字框。確認攻擊頁的戰後數量 `?` 會原樣保留，分析與匯入使用初始數量。
@@ -72,4 +82,4 @@ npm run check
 
 `npm run build` 會先檢查型別，再更新 `dist/astroempires.user.js`。`npm run check` 會檢查型別、執行測試，並將暫存目錄的建置結果與安裝檔逐位元組比對。
 
-建置後可用 `npm run test:browser` 測試浮動戰報分析、Shadow DOM 樣式隔離、雙語複製、AEBits 匯入與抵達時間預測。預設使用 macOS 的 Google Chrome 或命令列的 `chromium`，可用 `CHROME_BIN` 指定執行檔。
+建置後可用 `npm run test:browser` 測試首次語言選擇、設定與即時語言切換、浮動戰報分析、Shadow DOM 樣式隔離、雙語複製、AEBits 匯入與抵達時間預測。預設使用 macOS 的 Google Chrome 或命令列的 `chromium`，可用 `CHROME_BIN` 指定執行檔。

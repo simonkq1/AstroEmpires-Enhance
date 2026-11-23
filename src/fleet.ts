@@ -1,3 +1,5 @@
+import type { Locale } from './i18n.ts';
+
 export type FleetLanguage = 'chinese' | 'english';
 export type CalculatorSide = 'aS' | 'dS';
 
@@ -75,11 +77,11 @@ export function formatFleetTsv(units: readonly FleetUnit[], language: FleetLangu
     return units.map(unit => `${unit[language]}\t${unit.quantity}`).join('\n');
 }
 
-export function buildCalculatorUrl(rosters: CalculatorRosters, technologies?: CalculatorTechnologies): { url: URL } | { unknownNames: string[] } {
+export function buildCalculatorUrl(rosters: CalculatorRosters, technologies?: CalculatorTechnologies, locale: Locale = 'zh-CN'): { url: URL } | { unknownNames: string[] } {
     const unknownNames = Object.values(rosters).flatMap(units => units.filter(unit => !unit.code).map(unit => unit.name));
     if (unknownNames.length) return { unknownNames };
 
-    const url = new URL('https://aebits.win/zh/aeBattleCalc');
+    const url = new URL(`https://aebits.win/${locale === 'en' ? 'en' : 'zh'}/aeBattleCalc`);
     for (const side of ['aS', 'dS'] as const) {
         const units = rosters[side];
         if (units?.length) url.searchParams.set(side, units.map(unit => `${unit.code}:${unit.quantity}`).join(','));

@@ -37,7 +37,7 @@ export default defineConfig({
     }, monkey({
         entry: 'src/main.ts',
         userscript: {
-            name: 'Astro Empires 工具腳本',
+            name: 'Astro Empires Enhance',
             namespace: 'astroempires-tools',
             author: 'simonkq1',
             updateURL: userscriptUrl,

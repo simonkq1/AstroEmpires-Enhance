@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import packageInfo from '../package.json' with { type: 'json' };
 import reportFixture from '../test/fixtures/report.json' with { type: 'json' };
 import reportPages from '../test/fixtures/report-pages.json' with { type: 'json' };
+import englishReportPages from '../test/fixtures/report-pages-en.json' with { type: 'json' };
 
 const chrome = process.env.CHROME_BIN ?? (process.platform === 'darwin'
     ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'chromium');
@@ -22,6 +23,186 @@ const suite = `<!doctype html><meta charset="utf-8">
 const program = ${JSON.stringify(source).replace(/<\//g, '<\\/')};
 const reportFixture = ${JSON.stringify(reportFixture).replace(/<\//g, '<\\/')};
 const reportPages = ${JSON.stringify(reportPages).replace(/<\//g, '<\\/')};
+const englishReportPages = ${JSON.stringify(englishReportPages).replace(/<\//g, '<\\/')};
+const vueProgram = ${JSON.stringify(vue).replace(/<\//g, '<\\/')};
+localStorage.setItem('astro-empires-settings', JSON.stringify({ language: 'zh-CN' }));
+
+async function verifySettings() {
+    const ensure = (condition, message) => { if (!condition) throw new Error(message); };
+    const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+    const key = 'astro-empires-settings';
+    const fleetHtml = '<div id="fleet_overview"><table class="listing"><tr><td>Fighters</td><td>500</td></tr></table></div>';
+    let saved = null;
+    const storage = { getItem: () => saved, setItem(_, value) { saved = value; } };
+
+    async function page(path, html = fleetHtml, store = storage) {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647';
+        const loaded = new Promise(resolve => { frame.onload = resolve; });
+        frame.srcdoc = '<!doctype html><meta charset="utf-8"><style>body{font:40px fantasy}button,textarea,select{display:none!important}</style><body>' + html;
+        document.body.append(frame);
+        await loaded;
+        const child = frame.contentWindow;
+        child.eval(vueProgram);
+        const state = { copied: '', blocked: false, opened: [] };
+        const targetWindow = new Proxy(child, { get(target, name) {
+            if (name === 'open') return (...args) => state.opened.push(args);
+            const value = Reflect.get(target, name, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+        } });
+        const execute = child.Function('location', 'navigator', 'window', 'localStorage', program);
+        const run = () => execute(new URL('https://borealis.astroempires.com/' + path), {
+            clipboard: { async writeText(text) { if (state.blocked) throw new Error('Denied'); state.copied = text; } },
+        }, targetWindow, store);
+        const head = child.document.head.innerHTML;
+        run();
+        await settle();
+        const root = child.document.getElementById('astro-empires-report-analyzer').shadowRoot;
+        const dialog = root.querySelector('dialog');
+        const find = (label, target = root) => [...target.querySelectorAll('button')].find(button => button.textContent === label);
+        const click = async (label, target = root) => {
+            const node = find(label, target);
+            ensure(node, 'Missing translated button ' + label);
+            node.click();
+            await settle();
+        };
+        const choose = value => {
+            const select = dialog.querySelector('select');
+            select.value = value;
+            select.dispatchEvent(new child.Event('change'));
+        };
+        const settings = async () => {
+            const trigger = root.querySelector('.trigger');
+            if (root.querySelector('.feature-list').hidden) {
+                if (trigger.getAttribute('aria-expanded') === 'true') { trigger.click(); await settle(); }
+                trigger.click(); await settle();
+            }
+            const buttons = root.querySelectorAll('.feature-list button');
+            buttons[1].click();
+            await settle();
+            ensure(dialog.open && dialog.matches(':modal'), 'Settings must use a native modal dialog');
+        };
+        const save = async value => {
+            await settings();
+            choose(value);
+            await click(dialog.querySelector('.settings-actions button').textContent, dialog);
+        };
+        const analyze = async text => {
+            const trigger = root.querySelector('.trigger');
+            if (root.querySelector('.feature-list').hidden) {
+                if (trigger.getAttribute('aria-expanded') === 'true') { trigger.click(); await settle(); }
+                trigger.click(); await settle();
+            }
+            root.querySelector('.feature-list button').click();
+            await settle();
+            if (text !== undefined) {
+                const input = root.querySelector('textarea'); input.value = text;
+                input.dispatchEvent(new child.Event('input')); await settle();
+                root.querySelector('.panel > button').click(); await settle();
+            }
+        };
+        return { frame, child, state, root, dialog, choose, settings, save, analyze, click, run, head,
+            close() { if (dialog.open) dialog.close(); frame.remove(); } };
+    }
+
+    let current = await page('fleet.aspx?fleet=1');
+    ensure(current.dialog.open && current.dialog.textContent.includes('选择语言 / Choose language') && current.dialog.querySelector('select').value === 'en',
+        'Missing settings should show a bilingual first-use dialog with English selected');
+    const bounds = current.dialog.getBoundingClientRect();
+    ensure(Math.abs(bounds.left + bounds.width / 2 - current.child.innerWidth / 2) < 2 &&
+        Math.abs(bounds.top + bounds.height / 2 - current.child.innerHeight / 2) < 2, 'Settings should be centered in the viewport');
+    ensure(current.dialog.querySelector('select') === current.root.activeElement && bounds.width <= current.child.innerWidth - 30,
+        'First-use dialog should focus the language choice and fit a narrow viewport');
+    await current.click('稍后 / Later', current.dialog);
+    ensure(!current.dialog.open && saved === null && current.root.querySelector('.feature-list button').textContent === 'Analyze BBCode',
+        'Later should use English for this page without saving');
+    current.run(); await settle();
+    ensure(current.child.document.querySelectorAll('#astro-empires-report-analyzer').length === 1 && !current.dialog.open,
+        'Repeated initialization should keep a single entry and avoid reopening the first-use dialog');
+    current.close();
+
+    current = await page('fleet.aspx?fleet=1');
+    ensure(current.dialog.open, 'Later should prompt again on the next page load');
+    current.choose('zh-CN');
+    await current.click('保存 / Save', current.dialog);
+    ensure(saved === '{"language":"zh-CN"}' && !current.dialog.open, 'Saving the first choice should persist the language');
+    const fleet = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+    current.state.blocked = true;
+    await current.click('复制舰队资料', fleet);
+    await current.click('英文', fleet);
+    ensure(fleet.querySelector('[role=status]').textContent.includes('无法访问剪贴板'), 'Chinese clipboard errors should be translated');
+    const copiedText = fleet.querySelector('textarea').value;
+    await current.analyze(reportFixture.tables);
+    ensure(current.root.querySelector('.results').textContent.includes('缺少指挥中心'), 'Analysis reasons should use the selected language');
+    await current.save('en');
+    ensure(current.root.activeElement === current.root.querySelectorAll('.feature-list button')[1], 'Settings should restore focus to its menu entry');
+    ensure(fleet.querySelector('button').textContent === 'Copy fleet data' && fleet.querySelector('[role=status]').textContent.includes('Clipboard access failed') &&
+        fleet.querySelector('textarea').value === copiedText, 'Existing fleet controls and statuses should translate live while retaining manual-copy text');
+    ensure(current.root.querySelector('textarea').value === reportFixture.tables && current.root.querySelector('.results').textContent.includes('Armour (ARM)') &&
+        current.root.querySelector('.results').textContent.includes('bonuses are missing'), 'Analysis input, numeric results and warnings should survive a live language switch');
+    await current.analyze();
+    await current.click('Import into AEBits Battle Calculator');
+    const englishUrl = new URL(current.state.opened.at(-1)[0]);
+    ensure(englishUrl.pathname === '/en/aeBattleCalc' && englishUrl.searchParams.get('aT') === 'ARM:24,SLD:15', 'English analysis should import confirmed levels into the English calculator');
+    current.state.blocked = false;
+    await current.click('Copy fleet data', fleet);
+    await current.click('Simplified Chinese', fleet);
+    ensure(current.state.copied === '战斗机' + String.fromCharCode(9) + '500', 'Copy output language should remain independently selectable');
+    await current.click('AEBits Battle Calculator', fleet); await current.click('Attacker', fleet);
+    ensure(new URL(current.state.opened.at(-1)[0]).pathname === '/en/aeBattleCalc', 'Fleet import should follow the selected language');
+    await current.settings(); current.choose('zh-CN'); await current.click('Cancel', current.dialog);
+    ensure(fleet.querySelector('button').textContent === 'Copy fleet data' && saved === '{"language":"en"}', 'Cancel should discard the draft language');
+    await current.save('zh-CN'); await current.analyze(); await current.click('导入 AEBits 战斗模拟器');
+    const chineseUrl = new URL(current.state.opened.at(-1)[0]);
+    ensure(chineseUrl.pathname === '/zh/aeBattleCalc' && chineseUrl.search === englishUrl.search, 'Changing language should change only the calculator path');
+    ensure(current.child.document.head.innerHTML === current.head, 'Settings CSS must stay in Shadow DOM');
+    current.close();
+
+    current = await page('fleet.aspx?fleet=1');
+    ensure(!current.dialog.open && current.root.querySelector('.feature-list button').textContent === '分析 BBCode', 'Saved language should load without a prompt');
+    current.close();
+    for (const invalid of ['{invalid', '{"language":"fr"}']) {
+        saved = invalid; current = await page('base.aspx', '');
+        ensure(current.dialog.open, 'Invalid settings should reopen the language choice');
+        current.dialog.requestClose(); await settle();
+        ensure(!current.dialog.open && saved === invalid && current.root.querySelector('.feature-list button').textContent === 'Analyze BBCode',
+            'Native cancellation should temporarily use English without saving');
+        current.close();
+    }
+    saved = null;
+    current = await page('base.aspx', '', { getItem() { throw new Error('Denied'); }, setItem() { throw new Error('Denied'); } });
+    ensure(current.dialog.open, 'Storage access failure should prompt for language');
+    current.choose('zh-CN'); await current.click('保存 / Save', current.dialog);
+    ensure(current.dialog.open && current.dialog.textContent.includes('无法保存设置') &&
+        current.root.querySelector('.feature-list button').textContent === '分析 BBCode' && saved === null, 'Save failure should apply the page language and display a translated warning');
+    current.close();
+
+    saved = '{"language":"en"}';
+    current = await page('fleet.aspx?fleet=1&view=move', '<span id="server-time">2026-11-19 00:03:53</span><form id="move_fleet_form"><table><tr><td><input id="destination" value="B45:65:09:30"></td><td id="duration">24分钟 12秒</td></tr></table></form>');
+    const arrival = current.child.document.getElementById('astro-empires-fleet-arrival').shadowRoot;
+    ensure(arrival.textContent.includes('Estimated arrival') && arrival.textContent.includes('Server time'), 'Arrival should use English independently of the game language');
+    await current.save('zh-CN');
+    ensure(arrival.textContent.includes('预计到达') && arrival.textContent.includes('服务器时间'), 'Existing arrival labels should translate live');
+    current.close();
+
+    saved = '{"language":"en"}';
+    current = await page('combat.aspx?fleet=1327497&attack=1327637', reportPages.combat[0]);
+    const copy = current.child.document.querySelector('.battle-report').nextElementSibling.shadowRoot;
+    await current.click('Copy battle report BBCode', copy);
+    const bbcode = current.state.copied;
+    await current.save('zh-CN');
+    ensure(copy.querySelector('[role=status]').textContent.includes('已复制战报'), 'An existing BBCode copy status should translate live');
+    await current.click('复制战报 BBCode', copy);
+    ensure(current.state.copied === bbcode, 'Changing interface language should preserve the original report language');
+    const combat = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+    await current.click('AEBits 战斗计算器', combat);
+    ensure(new URL(current.state.opened.at(-1)[0]).pathname === '/zh/aeBattleCalc', 'Combat import should use Chinese when selected');
+    await current.save('en');
+    ensure(combat.querySelector('[role=status]').textContent.includes('confirm these fields'), 'Existing combat notices should translate live');
+    await current.click('AEBits Battle Calculator', combat);
+    ensure(new URL(current.state.opened.at(-1)[0]).pathname === '/en/aeBattleCalc', 'Combat import should use English when selected');
+    current.close();
+}
 
 async function verifyAnalyzer() {
     const execute = new Function('location', 'FontFace', 'document', 'window', program);
@@ -56,7 +237,7 @@ async function verifyAnalyzer() {
     const panel = root.querySelector('.panel');
     const menu = root.querySelector('.feature-list');
     const analysisButton = menu.querySelector('button');
-    ensure(analysisButton.textContent === '分析 BBCode' && panel.querySelector('h2').textContent === 'BBCode 戰報分析',
+    ensure(analysisButton.textContent === '分析 BBCode' && panel.querySelector('h2').textContent === 'BBCode 战报分析',
         'Analyzer entry and title should identify BBCode input');
     const trigger = root.querySelector('.trigger');
     const textarea = root.querySelector('textarea');
@@ -67,7 +248,7 @@ async function verifyAnalyzer() {
     };
     const readLevels = () => Object.fromEntries([...root.querySelector('.side').querySelectorAll('dt')]
         .map(element => [element.textContent, element.nextElementSibling.textContent]));
-    const importButton = () => [...root.querySelectorAll('button')].find(button => button.textContent === '導入 AEBits 戰鬥模擬器');
+    const importButton = () => [...root.querySelectorAll('button')].find(button => button.textContent === '导入 AEBits 战斗模拟器');
     const importedParams = () => {
         const [href, target, options] = opened.at(-1);
         const calculator = new URL(href);
@@ -81,7 +262,7 @@ async function verifyAnalyzer() {
     ensure(getComputedStyle(host).position === 'fixed' && getComputedStyle(host).right === '16px' &&
         getComputedStyle(host).bottom === '16px' && getComputedStyle(trigger).borderRadius === '50%', 'Expected a round fixed bottom-right button');
     ensure(getComputedStyle(trigger).display !== 'none', 'Host button styles must not hide the floating button');
-    ensure(trigger.textContent === '↑' && trigger.getAttribute('aria-label') === '開啟功能選單' &&
+    ensure(trigger.textContent === '↑' && trigger.getAttribute('aria-label') === '打开功能菜单' &&
         trigger.querySelector('span').getAttribute('aria-hidden') === 'true', 'Loading font should show the accessible arrow fallback');
     trigger.click();
     await settle();
@@ -110,17 +291,17 @@ async function verifyAnalyzer() {
         'Analyzer should fit the viewport');
     analyze.click();
     await settle();
-    ensure(root.querySelector('[role=status]').textContent.includes('請先貼上'), 'Empty report should show a prompt');
+    ensure(root.querySelector('[role=status]').textContent.includes('请先粘贴'), 'Empty report should show a prompt');
     input(reportFixture.information + reportFixture.tables);
     await settle();
     analyze.click();
     await settle();
     const levels = readLevels();
-    ensure(Object.keys(levels).length === 5 && levels['裝甲 (ARM)'] === '24' && levels['激光 (LAS)'] === '23' &&
-        levels['等離子電漿 (PLA)'] === '16' && levels['離子 (ION)'] === '12' && levels['護盾 (SLD)'] === '15',
+    ensure(Object.keys(levels).length === 5 && levels['装甲 (ARM)'] === '24' && levels['激光 (LAS)'] === '23' &&
+        levels['等离子电浆 (PLA)'] === '16' && levels['离子 (ION)'] === '12' && levels['护盾 (SLD)'] === '15',
         'Full report technology results should match the supplied example');
-    ensure(root.querySelectorAll('.side')[1].textContent.includes('指揮中心 (CC)5') &&
-        root.querySelectorAll('.side')[1].textContent.includes('防禦受損'), 'Defender should show CC and damaged defense limitations');
+    ensure(root.querySelectorAll('.side')[1].textContent.includes('指挥中心 (CC)5') &&
+        root.querySelectorAll('.side')[1].textContent.includes('防御受损'), 'Defender should show CC and damaged defense limitations');
     importButton().click();
     await settle();
     const fullParams = importedParams();
@@ -133,7 +314,7 @@ async function verifyAnalyzer() {
     ensure(panel.hidden && !menu.hidden && root.activeElement === analysisButton, 'Esc should return to the function list');
     analysisButton.click();
     await settle();
-    ensure(textarea.value === reportFixture.information + reportFixture.tables && readLevels()['裝甲 (ARM)'] === '24',
+    ensure(textarea.value === reportFixture.information + reportFixture.tables && readLevels()['装甲 (ARM)'] === '24',
         'Reopening analyzer should preserve report and result');
     trigger.click();
     await settle();
@@ -142,7 +323,7 @@ async function verifyAnalyzer() {
     await settle();
     analysisButton.click();
     await settle();
-    ensure(textarea.value === reportFixture.information + reportFixture.tables && readLevels()['裝甲 (ARM)'] === '24',
+    ensure(textarea.value === reportFixture.information + reportFixture.tables && readLevels()['装甲 (ARM)'] === '24',
         'Floating close should preserve input and results');
     const staleImport = importButton();
     const beforeEditing = opened.length;
@@ -153,18 +334,18 @@ async function verifyAnalyzer() {
         'Editing the input should clear results and prevent stale imports');
     analyze.click();
     await settle();
-    ensure(Object.keys(readLevels()).length === 2 && root.querySelector('.side').textContent.includes('缺少指揮中心或指揮官'),
+    ensure(Object.keys(readLevels()).length === 2 && root.querySelector('.side').textContent.includes('缺少指挥中心或指挥官'),
         'Partial report should show only confirmed levels and missing modifiers');
     importButton().click();
     await settle();
     const partialParams = importedParams();
     ensure(partialParams.get('aT') === 'ARM:24,SLD:15' && !partialParams.has('dT') &&
-        partialParams.get('dS') === 'PS:0.01,PR:0.01' && root.querySelector('.side').textContent.includes('缺少指揮中心或指揮官'),
+        partialParams.get('dS') === 'PS:0.01,PR:0.01' && root.querySelector('.side').textContent.includes('缺少指挥中心或指挥官'),
         'Partial analysis should still import fleets while keeping unresolved notices');
     const tab = String.fromCharCode(9), newline = String.fromCharCode(10);
     for (const [source, reason] of [
-        [reportFixture.tables.replace('炮艇', '未知舰船'), '未識別單位「未知舰船」'],
-        [reportFixture.tables.replace('炮艇' + tab + '6601', '炮艇' + tab + 'invalid'), '初始數量無效'],
+        [reportFixture.tables.replace('炮艇', '未知舰船'), '未识别单位「未知舰船」'],
+        [reportFixture.tables.replace('炮艇' + tab + '6601', '炮艇' + tab + 'invalid'), '初始数量无效'],
         [reportFixture.tables.replace(['6601','6601','8.6','11','0'].join(tab), ['6601','6601','8.6','11'].join(tab)), '兵力列不完整'],
     ]) {
         input(source);
@@ -191,15 +372,15 @@ async function verifyAnalyzer() {
     await settle();
     analyze.click();
     await settle();
-    ensure(!root.querySelector('.results') && root.querySelector('[role=status]').textContent.includes('缺少結束標籤'),
+    ensure(!root.querySelector('.results') && root.querySelector('[role=status]').textContent.includes('缺少结束标签'),
         'Malformed BBCode should clear the previous result and explain the missing closing tag');
     input('<img src=x onerror="window.reportInjected=true"><script>window.reportInjected=true</' + 'script>');
     await settle();
     analyze.click();
     await settle();
-    ensure(!root.querySelector('.results') && root.querySelector('[role=status]').textContent.includes('沒有可辨識') &&
+    ensure(!root.querySelector('.results') && root.querySelector('[role=status]').textContent.includes('没有可识别') &&
         !window.reportInjected && !root.querySelector('img,script'), 'Invalid text should clear results and remain plain text');
-    root.querySelector('[aria-label="關閉戰報分析"]').click();
+    root.querySelector('[aria-label="关闭战报分析"]').click();
     await settle();
     ensure(panel.hidden && !menu.hidden && root.activeElement === analysisButton, 'Panel close should return to the function list');
     analysisButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -243,7 +424,11 @@ async function verifyReportCopy() {
     const head = document.head.innerHTML;
     const newline = String.fromCharCode(10), tab = String.fromCharCode(9);
     let boardFirst, combatBbcode;
-    for (const [page, reports] of Object.entries(reportPages)) {
+    const pages = [
+        ...Object.entries(reportPages).map(([page, reports]) => ({ page, reports, expected: { messages: 14, board: 15, combat: 1 }[page], english: false })),
+        ...Object.entries(englishReportPages).map(([page, reports]) => ({ page, reports, expected: { messages: 14, board: 13 }[page], english: true })),
+    ];
+    for (const { page, reports, expected: count, english } of pages) {
         fixture.innerHTML = reports.join('');
         if (page === 'messages') {
             execute(new URL('https://borealis.astroempires.com/base.aspx'), navigatorMock, targetWindow);
@@ -255,7 +440,7 @@ async function verifyReportCopy() {
         execute(url, navigatorMock, targetWindow);
         await settle();
         const roots = [...fixture.querySelectorAll('.battle-report')];
-        ensure(roots.length === { messages: 14, board: 15, combat: 1 }[page], 'Expected every supplied report fixture');
+        ensure(roots.length === count, 'Expected every supplied report fixture');
         ensure(fixture.querySelectorAll('[' + marker + ']').length === roots.length, 'Each report should get exactly one copy control');
         for (const [index, report] of roots.entries()) {
             const original = report.innerHTML;
@@ -265,7 +450,7 @@ async function verifyReportCopy() {
             ensure(button.type === 'button' && getComputedStyle(button).display !== 'none', 'Copy button must work inside forms and hostile page CSS');
             button.click();
             await settle();
-            ensure(shadow.querySelector('[role=status]').textContent.includes('已複製'), 'Report copy should show success');
+            ensure(shadow.querySelector('[role=status]').textContent.includes('已复制'), 'Report copy should show success');
             ensure(report.innerHTML === original, 'Conversion should preserve the source report');
             const tables = [...report.querySelectorAll('.battle-report_attack,.battle-report_defense')];
             const blocks = copied.split('[code]').slice(1).map(block => block.split('[/code]')[0].trim());
@@ -280,15 +465,37 @@ async function verifyReportCopy() {
             for (const summary of report.querySelectorAll(':scope > center')) {
                 ensure(plain.includes(summary.textContent.trim()), 'Report outcome text should survive conversion');
             }
-            if (page === 'board' && index === 0) boardFirst = copied;
+            if (english) {
+                const analyzer = document.getElementById('astro-empires-report-analyzer').shadowRoot;
+                if (analyzer.querySelector('.panel').hidden) {
+                    analyzer.querySelector('.trigger').click(); await settle();
+                    analyzer.querySelector('.feature-list button').click(); await settle();
+                }
+                const input = analyzer.querySelector('textarea');
+                input.value = copied;
+                input.dispatchEvent(new Event('input')); await settle();
+                [...analyzer.querySelectorAll('button')].find(button => button.textContent === '分析').click(); await settle();
+                ensure(analyzer.querySelector('.results'), 'English page BBCode with a Unit header should produce analysis results');
+                const importButton = [...analyzer.querySelectorAll('button')].find(button => button.textContent === '导入 AEBits 战斗模拟器');
+                opened = null;
+                importButton.click(); await settle();
+                ensure(opened, 'Every supplied English report should import into AEBits');
+                for (const [side, table] of [['aS', tables[0]], ['dS', tables[1]]]) {
+                    const initial = [...table.rows].filter(row => row.cells.length === 6 && row.cells[0].tagName === 'TD')
+                        .map(row => Number(row.cells[1].textContent.replaceAll(',', '').trim()));
+                    const quantities = (opened.searchParams.get(side) ?? '').split(',').filter(Boolean).map(unit => Number(unit.split(':')[1]));
+                    ensure(JSON.stringify(quantities) === JSON.stringify(initial), 'English BBCode import must preserve all initial quantities');
+                }
+            }
+            if (!english && page === 'board' && index === 0) boardFirst = copied;
             if (page === 'combat') {
                 combatBbcode = copied;
                 const codeRows = blocks.flatMap(block => block.split(newline).slice(1));
                 ensure(codeRows.length === 9 && codeRows.every(row => row.split(tab)[2] === '?'),
                     'Combat BBCode should preserve every unknown post-battle count');
-                ensure(!copied.includes('複製艦隊資料') && !copied.includes('AEBits'), 'BBCode must contain report data without toolbar text');
+                ensure(!copied.includes('复制舰队资料') && !copied.includes('AEBits'), 'BBCode must contain report data without toolbar text');
                 const toolbar = document.getElementById('astro-empires-fleet-actions').shadowRoot;
-                ensure(toolbar.querySelector('[aria-label="複製艦隊資料"]') && toolbar.querySelector('[aria-label="AEBits战斗计算器"]'),
+                ensure(toolbar.querySelector('[aria-label="复制舰队资料"]') && toolbar.querySelector('[aria-label="AEBits 战斗计算器"]'),
                     'Existing combat actions should coexist with the BBCode copy control');
             }
         }
@@ -315,6 +522,7 @@ async function verifyReportCopy() {
         fixture.replaceChildren();
     }
     const analyzer = document.getElementById('astro-empires-report-analyzer').shadowRoot;
+    if (!analyzer.querySelector('.panel').hidden) { analyzer.querySelector('.trigger').click(); await settle(); }
     analyzer.querySelector('.trigger').click();
     await settle();
     analyzer.querySelector('.feature-list button').click();
@@ -327,16 +535,16 @@ async function verifyReportCopy() {
     await settle();
     const levels = Object.fromEntries([...analyzer.querySelector('.side').querySelectorAll('dt')]
         .map(element => [element.textContent, element.nextElementSibling.textContent]));
-    ensure(levels['裝甲 (ARM)'] === '24' && levels['激光 (LAS)'] === '23' && levels['等離子電漿 (PLA)'] === '16' &&
-        levels['離子 (ION)'] === '12' && levels['護盾 (SLD)'] === '15', 'Generated board BBCode should analyze back to the expected attacker levels');
-    ensure(analyzer.querySelectorAll('.side')[1].textContent.includes('指揮中心 (CC)5') &&
-        analyzer.querySelectorAll('.side')[1].textContent.includes('防禦受損'), 'Generated board BBCode should preserve defender modifiers and damage');
+    ensure(levels['装甲 (ARM)'] === '24' && levels['激光 (LAS)'] === '23' && levels['等离子电浆 (PLA)'] === '16' &&
+        levels['离子 (ION)'] === '12' && levels['护盾 (SLD)'] === '15', 'Generated board BBCode should analyze back to the expected attacker levels');
+    ensure(analyzer.querySelectorAll('.side')[1].textContent.includes('指挥中心 (CC)5') &&
+        analyzer.querySelectorAll('.side')[1].textContent.includes('防御受损'), 'Generated board BBCode should preserve defender modifiers and damage');
     input.value = combatBbcode;
     input.dispatchEvent(new Event('input'));
     await settle();
     [...analyzer.querySelectorAll('button')].find(button => button.textContent === '分析').click();
     await settle();
-    [...analyzer.querySelectorAll('button')].find(button => button.textContent === '導入 AEBits 戰鬥模擬器').click();
+    [...analyzer.querySelectorAll('button')].find(button => button.textContent === '导入 AEBits 战斗模拟器').click();
     await settle();
     const params = opened.searchParams;
     ensure(params.get('aS') === 'SS:1' && params.get('dS') === 'FT:135870,BO:4080,CV:6601,RC:23999,DE:4629,IF:14272,BS:769,FC:281',
@@ -385,14 +593,14 @@ async function verify() {
         await new Promise(resolve => setTimeout(resolve, 0));
     };
     blocked = false;
-    await click('複製艦隊資料');
-    await click('簡體中文');
+    await click('复制舰队资料');
+    await click('简体中文');
     ensure(copied === '战斗机\\t500' && backup.hidden, 'Chinese copy should succeed and hide the fallback');
-    await click('複製艦隊資料');
+    await click('复制舰队资料');
     await click('英文');
     ensure(copied === 'Fighters\\t500', 'English copy should keep the same counts');
     for (const [label, key, other] of [['攻方', 'aS', 'dS'], ['守方', 'dS', 'aS']]) {
-        await click('AEBits战斗计算器');
+        await click('AEBits 战斗计算器');
         await click(label);
         const [href, target, options] = opened.at(-1);
         const calculator = new URL(href);
@@ -427,13 +635,13 @@ async function verifyCombat() {
             { clipboard: { async writeText(text) { copied = text; } } }, { open: href => { opened = new URL(href); } });
         const root = document.getElementById('astro-empires-fleet-actions').shadowRoot;
         const click = async label => { root.querySelector('button[aria-label="' + label + '"]').click(); await settle(); };
-        await click('複製艦隊資料');
-        await click('守方 簡體中文');
+        await click('复制舰队资料');
+        await click('守方 简体中文');
         ensure(copied === '战斗机\\t26400\\n行星护盾\\t10', 'Combat Chinese copy should use initial counts');
-        await click('複製艦隊資料');
+        await click('复制舰队资料');
         await click('守方 英文');
         ensure(copied === 'Fighters\\t26400\\nPlanetary Shield\\t10', 'Combat English copy should keep the same initial counts');
-        await click('AEBits战斗计算器');
+        await click('AEBits 战斗计算器');
         const params = opened.searchParams;
         const sorted = key => params.get(key).split(',').sort().join(',');
         ensure(params.get('aS') === 'CV:1' && params.get('dS') === 'FT:26400,PS:10' && params.get('gv') === '5',
@@ -483,16 +691,16 @@ async function verifyCombatTargets() {
                 'Combat tools should appear below the defender table for target ' + attack);
             const root = host.shadowRoot;
             const click = async label => { root.querySelector('button[aria-label="' + label + '"]').click(); await settle(); };
-            await click('複製艦隊資料');
-            await click('攻方 簡體中文');
+            await click('复制舰队资料');
+            await click('攻方 简体中文');
             ensure(copied === '侦察机' + tab + '1', 'Screenshot attacker should copy its initial count');
-            for (const [language, column] of [['簡體中文', 1], ['英文', 0]]) {
-                await click('複製艦隊資料');
+            for (const [language, column] of [['简体中文', 1], ['英文', 0]]) {
+                await click('复制舰队资料');
                 await click('守方 ' + language);
                 ensure(copied === defenderData.map(unit => unit[column] + tab + unit[2]).join(newline),
                     'Screenshot defender copy should preserve order and initial counts despite unknown post-battle counts');
             }
-            await click('AEBits战斗计算器');
+            await click('AEBits 战斗计算器');
             const params = opened.searchParams;
             ensure(params.get('aS') === 'SS:1' && params.get('dS') === defenderCounts && params.get('gv') === '5',
                 'Screenshot fleets should be assigned to their correct calculator sides');
@@ -594,7 +802,7 @@ async function verifyArrival() {
     ensure(!serverArrival() && !localArrival(), 'Empty travel duration must clear both estimates');
 }
 
-verifyAnalyzer().then(verifyReportCopy).then(verify).then(verifyCombat).then(verifyCombatTargets).then(verifyArrival).then(() => { document.body.dataset.result = 'pass'; }, error => {
+verifySettings().then(verifyAnalyzer).then(verifyReportCopy).then(verify).then(verifyCombat).then(verifyCombatTargets).then(verifyArrival).then(() => { document.body.dataset.result = 'pass'; }, error => {
     document.body.dataset.result = 'fail';
     document.body.dataset.error = error.message;
 });
@@ -608,12 +816,12 @@ try {
         '--headless', '--disable-gpu', '--disable-background-networking', '--host-resolver-rules=MAP * ~NOTFOUND',
         '--no-first-run', '--no-default-browser-check', `--user-data-dir=${join(directory, 'chrome')}`,
         '--window-size=390,900',
-        '--dump-dom', '--virtual-time-budget=5000', pathToFileURL(page).href,
+        '--dump-dom', '--virtual-time-budget=10000', pathToFileURL(page).href,
     ], { encoding: 'utf8', timeout: 30_000, maxBuffer: 4_000_000 });
     if (result.error) throw result.error;
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout.match(/<body[^>]*>/)?.[0] ?? '', /data-result="pass"/);
-    console.log('30 份戰報 BBCode 轉換、分析、浮動入口、雙語複製、AEBits 匯入及抵達時間預測通過瀏覽器測試。');
+    console.log('57 份中英文戰報 BBCode 轉換與匯入、雙語設定及既有功能通過瀏覽器測試。');
 } finally {
     rmSync(directory, { recursive: true, force: true });
 }

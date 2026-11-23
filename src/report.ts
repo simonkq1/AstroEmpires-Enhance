@@ -1,5 +1,6 @@
 import { inferCombatTechnology, readCommander, readLevel, readNumber, type CombatModifiers, type CombatObservation } from './combat.ts';
 import { buildCalculatorUrl, identifyFleetUnit, type FleetUnit } from './fleet.ts';
+import { msg, type Message, type Locale } from './i18n.ts';
 
 type Side = 'attacker' | 'defender';
 
@@ -7,9 +8,9 @@ interface ReportSide {
     observations: CombatObservation[];
     modifiers: CombatModifiers;
     hasInformation: boolean;
-    warnings: string[];
+    warnings: Message[];
     units: FleetUnit[];
-    importErrors: string[];
+    importErrors: Message[];
 }
 
 export function analyzeReport(text: string) {
@@ -36,15 +37,15 @@ export function analyzeReport(text: string) {
         }
         if (!side) continue;
         const report = sides[side];
-        if (inCode && /^(?:舰船|ships?)$/.test(label)) {
+        if (inCode && /^(?:舰船|ships?|units?)$/.test(label)) {
             inUnits = true;
             continue;
         }
         if (inUnits) {
             const quantity = readNumber(cells[1]);
             if (cells.length !== 6 || quantity === undefined || quantity <= 0) {
-                const reason = cells.length !== 6 ? '兵力列不完整' : '初始數量無效';
-                const warning = `單位「${cells[0] || '未命名單位'}」的${reason}。`;
+                const reason = cells.length !== 6 ? 'incompleteRow' : 'invalidQuantity';
+                const warning = msg(reason, { name: cells[0] || msg('unnamedUnit') });
                 report.warnings.push(warning);
                 report.importErrors.push(warning);
                 continue;
@@ -53,13 +54,13 @@ export function analyzeReport(text: string) {
             const { code } = unit;
             report.units.push(unit);
             if (!code) {
-                const warning = `未識別單位「${cells[0]}」，其數值未用於推算。`;
+                const warning = msg('unknownUnit', { name: cells[0] });
                 report.warnings.push(warning);
                 report.importErrors.push(warning);
             }
             const observation = { code, attack: readNumber(cells[3]), armour: readNumber(cells[4]), shield: readNumber(cells[5]) };
             if ([observation.attack, observation.armour, observation.shield].some(value => value === undefined)) {
-                report.warnings.push(`單位「${cells[0]}」的攻擊、裝甲或護盾資料不完整。`);
+                report.warnings.push(msg('incompleteStats', { name: cells[0] }));
             }
             report.observations.push(observation);
             continue;
@@ -89,38 +90,38 @@ export function analyzeReport(text: string) {
     const result = (side: ReportSide) => ({
         ...inferCombatTechnology(side.observations, side.modifiers),
         count: side.observations.filter(observation => observation.code).length,
-        warnings: [...new Set(side.warnings)],
+        warnings: uniqueMessages(side.warnings),
         units: side.units,
-        importErrors: [...new Set(side.importErrors)],
+        importErrors: uniqueMessages(side.importErrors),
     });
     return { attacker: result(sides.attacker), defender: result(sides.defender), error: parsed.error };
 }
 
-export function buildReportCalculatorUrl(report: ReturnType<typeof analyzeReport>): { url: URL } | { error: string } {
+export function buildReportCalculatorUrl(report: ReturnType<typeof analyzeReport>, locale: Locale = 'zh-CN'): { url: URL } | { error: Message } {
     if (report.error) return { error: report.error };
     const errors = [
-        ...report.attacker.importErrors.map(error => `攻方${error}`),
-        ...report.defender.importErrors.map(error => `守方${error}`),
+        ...report.attacker.importErrors.map(error => msg('sideIssue', { side: msg('attacker'), issue: error })),
+        ...report.defender.importErrors.map(error => msg('sideIssue', { side: msg('defender'), issue: error })),
     ];
-    if (errors.length) return { error: `無法匯入，${errors.join(' ')}` };
-    if (!report.attacker.units.length && !report.defender.units.length) return { error: '沒有可匯入的初始兵力。' };
+    if (errors.length) return { error: msg('importBlocked', { issues: errors }) };
+    if (!report.attacker.units.length && !report.defender.units.length) return { error: msg('noImportUnits') };
     const result = buildCalculatorUrl({ aS: report.attacker.units, dS: report.defender.units }, {
         aT: report.attacker.units.length ? report.attacker.levels : {},
         dT: report.defender.units.length ? report.defender.levels : {},
-    });
-    return 'unknownNames' in result ? { error: `無法匯入，未識別單位為 ${result.unknownNames.join('、')}。` } : result;
+    }, locale);
+    return 'unknownNames' in result ? { error: msg('unknownImport', { names: result.unknownNames }) } : result;
 }
 
 function readBbcodeRows(text: string) {
     const rows: { cells: string[]; inCode: boolean }[] = [];
     let inCode = false;
-    let error: string | null = null;
+    let error: Message | null = null;
     for (const part of text.split(/(\[\/?code\])/i)) {
         if (/^\[code\]$/i.test(part)) {
-            if (inCode) error = 'BBCode 的 [code] 區塊巢狀或未正確結束。';
+            if (inCode) error = msg('codeNested');
             inCode = true;
         } else if (/^\[\/code\]$/i.test(part)) {
-            if (!inCode) error = 'BBCode 的 [code] 區塊缺少起始標籤。';
+            if (!inCode) error = msg('codeMissingStart');
             inCode = false;
         } else {
             for (const sourceLine of part.split(/\r?\n/)) {
@@ -132,7 +133,7 @@ function readBbcodeRows(text: string) {
             }
         }
     }
-    if (inCode) error = 'BBCode 的 [code] 區塊缺少結束標籤。';
+    if (inCode) error = msg('codeMissingEnd');
     return { rows, error };
 }
 
@@ -142,4 +143,8 @@ function cleanCell(text: string): string {
         .replace(/&#91;/g, '[').replace(/&#93;/g, ']')
         .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
         .replace(/\s+/g, ' ').trim();
+}
+
+function uniqueMessages(messages: Message[]): Message[] {
+    return [...new Map(messages.map(message => [JSON.stringify(message), message])).values()];
 }

@@ -1,9 +1,10 @@
 import { readCombatTechnologies, type FleetUnitRow } from './combat.ts';
 import { parseFleetUnit } from './fleet.ts';
 import { mountFleetArrival } from './ui/fleet-arrival.ts';
-import { calculatorLabel, mountFleetActions, panelId } from './ui/fleet-toolbar.ts';
+import { mountFleetActions, panelId } from './ui/fleet-toolbar.ts';
 import { mountReportAnalyzer } from './ui/report-analyzer.ts';
 import { initializeReportCopy } from './ui/report-copy.ts';
+import { initializeSettings } from './settings.ts';
 
 function initializeFleetActions(): void {
     console.debug('[Astro Empires] 腳本已載入');
@@ -20,7 +21,7 @@ function initializeFleetActions(): void {
         const table = document.querySelector<HTMLTableElement>('#fleet_overview table.listing');
         if (!table) return;
         const units = readUnitRows(table).map(({ unit }) => unit);
-        mountFleetActions(table, [{ units }], [['攻方', { aS: units }], ['守方', { dS: units }]]);
+        mountFleetActions(table, [{ units }], [['attacker', { aS: units }], ['defender', { dS: units }]]);
         return;
     }
 
@@ -38,9 +39,9 @@ function initializeFleetActions(): void {
     const attacker = attackRows.map(({ unit }) => unit);
     const defender = defenseRows.map(({ unit }) => unit);
     mountFleetActions(lastTable, [
-        { units: attacker, side: '攻方' },
-        { units: defender, side: '守方' },
-    ], [[calculatorLabel, { aS: attacker, dS: defender }]], () => readCombatTechnologies(
+        { units: attacker, side: 'attacker' },
+        { units: defender, side: 'defender' },
+    ], [['calculator', { aS: attacker, dS: defender }]], () => readCombatTechnologies(
         document.querySelector<HTMLTableElement>('table.battle-report_info'), attackRows, defenseRows));
 }
 
@@ -57,6 +58,7 @@ function readUnitRows(table: HTMLTableElement | null, includeDefenses = false): 
 }
 
 if (location.hostname === 'borealis.astroempires.com') {
+    initializeSettings();
     mountReportAnalyzer();
     initializeFleetActions();
     if (['/messages.aspx', '/board.aspx', '/combat.aspx'].includes(location.pathname)) initializeReportCopy();

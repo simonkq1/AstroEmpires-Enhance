@@ -5,14 +5,14 @@ import type { readCombatTechnologies } from '../combat.ts';
 import { buildCalculatorUrl, formatFleetTsv, type CalculatorRosters, type FleetLanguage, type FleetUnit } from '../fleet.ts';
 import styles from './fleet-toolbar.css?inline';
 import { setPrimeVueStyleRoot } from './primevue-style.ts';
+import { language, msg, t, type Message, type MessageKey } from '../i18n.ts';
 
 export const panelId = 'astro-empires-fleet-actions';
-export const calculatorLabel = 'AEBits战斗计算器';
-const languages = [['chinese', '簡體中文'], ['english', '英文']] as const;
+const languages = [['chinese', 'chinese'], ['english', 'english']] as const;
 
-type CopySource = { units: FleetUnit[]; side?: '攻方' | '守方' };
-type ActionChoice = [label: string, action: () => void];
-type CalculatorChoice = [label: string, rosters: CalculatorRosters];
+type CopySource = { units: FleetUnit[]; side?: 'attacker' | 'defender' };
+type ActionChoice = [label: Message, action: () => void];
+type CalculatorChoice = [label: MessageKey, rosters: CalculatorRosters];
 type Menu = 'copy' | 'aebits';
 
 export function mountFleetActions(
@@ -38,22 +38,22 @@ export function mountFleetActions(
     createApp({
         setup() {
             const expanded = ref<Menu | null>(null);
-            const status = ref('');
+            const status = ref<Message | null>(null);
             const fallback = ref<{ text: string; rows: number } | null>(null);
             const textarea = ref<HTMLTextAreaElement | null>(null);
             const copyChoices = availableSources.flatMap(({ units, side }) =>
                 languages.map(([language, languageLabel]): ActionChoice => {
-                    const label = side ? `${side} ${languageLabel}` : languageLabel;
+                    const label = side ? msg('copyChoice', { side: msg(side), language: msg(languageLabel) }) : msg(languageLabel);
                     return [label, () => copyFleet(units, language, label)];
                 }));
             const calculatorChoices = calculators.map(([label, rosters]): ActionChoice =>
-                [label, () => openCalculator(rosters)]);
+                [msg(label), () => openCalculator(rosters)]);
 
-            function actionButton(label: string, onClick: () => void, attrs = {}) {
-                return h(Button, { label, type: 'button', class: 'action', onClick, ...attrs });
+            function actionButton(label: Message | MessageKey, onClick: () => void, attrs = {}) {
+                return h(Button, { label: t(label), type: 'button', class: 'action', onClick, ...attrs });
             }
 
-            function menu(id: Menu, label: string, choices: ActionChoice[]) {
+            function menu(id: Menu, label: MessageKey, choices: ActionChoice[]) {
                 const triggerId = `${panelId}-${id}-trigger`;
                 const optionsId = `${panelId}-${id}-options`;
                 const open = expanded.value === id;
@@ -68,18 +68,18 @@ export function mountFleetActions(
                             expanded.value = null;
                             shadow.getElementById(triggerId)?.focus();
                             action();
-                        }, { key: choice }))),
+                        }, { key: t(choice) }))),
                 ]);
             }
 
-            async function copyFleet(units: FleetUnit[], language: FleetLanguage, label: string): Promise<void> {
+            async function copyFleet(units: FleetUnit[], language: FleetLanguage, label: Message): Promise<void> {
                 const text = formatFleetTsv(units, language);
                 fallback.value = null;
                 try {
                     await navigator.clipboard.writeText(text);
-                    status.value = `已複製${label}艦隊資料。`;
+                    status.value = msg('copiedFleet', { choice: label });
                 } catch {
-                    status.value = '無法存取剪貼簿，請手動複製下方的艦隊資料。';
+                    status.value = msg('clipboardFleet');
                     fallback.value = { text, rows: Math.min(units.length, 6) };
                     await nextTick();
                     textarea.value?.focus();
@@ -90,9 +90,9 @@ export function mountFleetActions(
             function openCalculator(rosters: CalculatorRosters): void {
                 expanded.value = null;
                 const combat = readTechnologies?.();
-                const result = buildCalculatorUrl(rosters, combat?.technologies);
+                const result = buildCalculatorUrl(rosters, combat?.technologies, language.value);
                 if ('unknownNames' in result) {
-                    status.value = `無法匯入，未識別的單位為 ${result.unknownNames.join('、')}。`;
+                    status.value = msg('unknownImport', { names: result.unknownNames });
                     return;
                 }
 
@@ -102,11 +102,11 @@ export function mountFleetActions(
 
             return () => [
                 h('div', { class: 'actions' }, [
-                    menu('copy', '複製艦隊資料', copyChoices),
+                    menu('copy', 'copyFleet', copyChoices),
                     calculatorChoices.length === 1 ? actionButton(...calculatorChoices[0])
-                        : menu('aebits', calculatorLabel, calculatorChoices),
+                        : menu('aebits', 'calculator', calculatorChoices),
                 ]),
-                h('div', { class: 'status', role: 'status' }, status.value),
+                h('div', { class: 'status', role: 'status' }, t(status.value)),
                 h('textarea', {
                     ref: textarea,
                     class: 'fallback',
@@ -114,7 +114,7 @@ export function mountFleetActions(
                     hidden: !fallback.value,
                     rows: fallback.value?.rows ?? 1,
                     value: fallback.value?.text ?? '',
-                    'aria-label': '艦隊資料',
+                    'aria-label': t('fleetData'),
                 }),
             ];
         },

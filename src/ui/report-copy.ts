@@ -1,6 +1,7 @@
 import { createApp, h, nextTick, ref } from 'vue';
 import { reportToBbcode } from '../report-bbcode.ts';
 import styles from './fleet-toolbar.css?inline';
+import { msg, t, type Message } from '../i18n.ts';
 
 const marker = 'data-astro-empires-report-copy';
 
@@ -22,7 +23,7 @@ export function initializeReportCopy(): void {
 
         createApp({
             setup() {
-                const status = ref('');
+                const status = ref<Message | null>(null);
                 const fallback = ref('');
                 const textarea = ref<HTMLTextAreaElement | null>(null);
                 let copying = false;
@@ -35,27 +36,27 @@ export function initializeReportCopy(): void {
                         const text = reportToBbcode(report, location.href);
                         try {
                             await navigator.clipboard.writeText(text);
-                            status.value = '已複製戰報 BBCode。';
+                            status.value = msg('copiedReport');
                         } catch {
-                            status.value = '無法存取剪貼簿，請手動複製下方的 BBCode。';
+                            status.value = msg('clipboardReport');
                             fallback.value = text;
                             await nextTick();
                             textarea.value?.focus();
                             textarea.value?.select();
                         }
                     } catch {
-                        status.value = '戰報資料不完整，無法轉換。';
+                        status.value = msg('incompleteReport');
                     } finally {
                         copying = false;
                     }
                 }
 
                 return () => [
-                    h('button', { type: 'button', class: 'action', onClick: copy }, '複製戰報 BBCode'),
-                    h('div', { class: 'status', role: 'status' }, status.value),
+                    h('button', { type: 'button', class: 'action', onClick: copy }, t('copyReport')),
+                    h('div', { class: 'status', role: 'status' }, t(status.value)),
                     h('textarea', {
                         ref: textarea, class: 'fallback', readonly: true, rows: 6,
-                        hidden: !fallback.value, value: fallback.value, 'aria-label': '戰報 BBCode',
+                        hidden: !fallback.value, value: fallback.value, 'aria-label': t('reportInput'),
                     }),
                 ];
             },
