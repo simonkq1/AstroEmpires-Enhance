@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Astro Empires Enhance
 // @namespace    astroempires-tools
-// @version      0.8.1
+// @version      0.9.0
 // @author       simonkq1
 // @description  在 Borealis 提供戰報 BBCode 轉換與分析、艦隊資料複製、AEBits 匯入與抵達時間預測
 // @downloadURL  https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
@@ -25,6 +25,22 @@
 		menu: "Features",
 		openMenu: "Open feature menu",
 		closeMenu: "Close feature menu",
+		help: "Help",
+		helpTitle: "Features and usage",
+		helpIntro: "These features are available on Borealis. Open the bottom-right arrow to access BBCode analysis, Settings and Help. Close this window or press Esc to return to the menu.",
+		helpReportPages: "On messages.aspx, board.aspx and combat.aspx, find a battle report and click “Copy battle report BBCode” below it. Each button copies only its own report, keeping the original language.",
+		helpReportCopy: "If clipboard access fails, select and copy the text in the fallback box manually. Use this BBCode for analysis instead of copying the game table directly.",
+		helpAnalyzePaste: "Open “Analyze BBCode” from the feature menu, paste the copied BBCode, then click “Analyze”. Simplified Chinese and English reports are supported. Keep the side headings and all six columns of each [code] unit table.",
+		helpAnalyzeResults: "Results show confirmed technology levels for each side and explain fields that need confirmation. A complete report helps identify bonuses. Editing the input clears the old result; click “Analyze” again. Closing the panel keeps your input and results until you leave the page.",
+		helpImport: "After a successful analysis, click “Import into AEBits Battle Calculator”. A new tab opens with initial forces, confirmed technologies and explicit bonuses. Fractional forces and units destroyed in battle are included. Only the available side is imported for a one-sided report.",
+		helpImportErrors: "Check unresolved technologies manually in AEBits. Unknown units, invalid initial quantities or incomplete unit rows block import; correct the reported issue and analyze again. The calculator language follows your script language.",
+		helpFleetCombat: "Fleet details and combat pages",
+		helpFleet: "On fleet.aspx?fleet=<fleet ID>, click “Copy fleet data” below the ship table and choose Simplified Chinese or English. Each line contains a unit name and quantity separated by a Tab. For AEBits, choose Attacker or Defender; fleet details import ships only, so enter technologies in the calculator.",
+		helpCombat: "On combat.aspx, “Copy fleet data” lets you choose the side and output language. “AEBits Battle Calculator” imports both sides’ initial forces, including listed defenses, and confirmed technologies and bonuses. Check any confirmation notices below the toolbar.",
+		helpArrival: "On fleet.aspx?fleet=<fleet ID>&view=move, choose a destination and set ships and speed. Once the game calculates travel time, “Estimated arrival” below the travel table updates every second as if you departed now.",
+		helpClocks: "Server time uses the game’s header clock (GMT+1); it shows “Unavailable” if that clock cannot be read. Local time independently uses your device’s current clock and time zone. An invalid travel time clears both estimates. These estimates do not launch the fleet.",
+		helpLanguageFirst: "On first use, select 简体中文 or English and save. “Later” or Esc uses English for this page and asks again on the next page load.",
+		helpLanguageSettings: "Open “Settings” from the feature menu, choose a language under “Display” and save. The interface updates immediately while keeping your report and results. “Cancel” discards the selection. Fleet copy language is chosen separately.",
 		analyzeBbcode: "Analyze BBCode",
 		analysisTitle: "BBCode Battle Report Analysis",
 		closeAnalysis: "Close battle report analysis",
@@ -100,6 +116,22 @@
 		menu: "功能菜单",
 		openMenu: "打开功能菜单",
 		closeMenu: "收起功能菜单",
+		help: "说明",
+		helpTitle: "功能与使用说明",
+		helpIntro: "以下功能适用于 Borealis。点击右下角箭头，可打开分析 BBCode、设置和说明。关闭本窗口或按 Esc 可返回功能菜单。",
+		helpReportPages: "在消息页 messages.aspx、公会面板 board.aspx 或战斗页 combat.aspx，找到战报并点击下方的“复制战报 BBCode”。每个按钮只复制对应的战报，保留原文语言。",
+		helpReportCopy: "如果无法访问剪贴板，请选中备用文本框中的内容并手动复制。分析时请使用这份 BBCode，避免直接复制游戏表格造成格式缺失。",
+		helpAnalyzePaste: "从功能菜单打开“分析 BBCode”，粘贴复制的内容后点击“分析”。支持简体中文和英文战报。请保留攻守方标题，以及 [code] 兵力表格的全部六栏。",
+		helpAnalyzeResults: "结果分别列出攻守方已确认的科技等级，以及待确认字段的原因。完整战报有助于识别加成。修改输入后会清除旧结果，请再次点击“分析”。关闭面板会保留输入和结果，直到离开页面。",
+		helpImport: "分析成功后，点击“导入 AEBits 战斗模拟器”，即可在新标签页带入初始兵力、已确认科技与明列加成。小数兵力及战后全灭单位也会保留。仅有一方资料时只导入该方。",
+		helpImportErrors: "请在 AEBits 手动确认尚未确定的科技。遇到未识别单位、初始数量无效或兵力列不完整时，会停止导入；请按提示修正后重新分析。模拟器语言跟随脚本语言设置。",
+		helpFleetCombat: "舰队详情与战斗页",
+		helpFleet: "在 fleet.aspx?fleet=<舰队编号> 的舰船表下方，点击“复制舰队资料”并选择简体中文或英文。每行包含舰种与数量，以 Tab 分隔。打开 AEBits 时可选择攻方或守方；舰队详情只导入舰船，科技需在模拟器中填写。",
+		helpCombat: "在 combat.aspx，“复制舰队资料”可选择攻守方与输出语言。“AEBits 战斗计算器”会导入双方初始兵力、列出的防御设施，以及已确认的科技和加成。请检查工具栏下方的待确认提示。",
+		helpArrival: "在 fleet.aspx?fleet=<舰队编号>&view=move，选择目的地并设置舰船和速度。游戏算出航行时间后，航行表下方的“预计到达”会每秒更新，表示如果现在出发的抵达时间。",
+		helpClocks: "服务器时间从游戏页首时钟（GMT+1）起算，无法读取时显示“无法取得”。本地时间独立使用设备当前时钟与时区计算。航行时间无效时会清除两项预测。预测功能不会派遣舰队。",
+		helpLanguageFirst: "首次使用时，选择简体中文或 English 并保存。“稍后”或 Esc 会在本页使用英文，下次载入页面时再次询问。",
+		helpLanguageSettings: "从功能菜单打开“设置”，在“显示”中选择语言并保存。界面立即更新，战报输入和结果会保留。“取消”会放弃本次选择。复制舰队资料的输出语言可独立选择。",
 		analyzeBbcode: "分析 BBCode",
 		analysisTitle: "BBCode 战报分析",
 		closeAnalysis: "关闭战报分析",
@@ -5219,7 +5251,7 @@ dd {
 	function uniqueMessages(messages) {
 		return [...new Map(messages.map((message) => [JSON.stringify(message), message])).values()];
 	}
-	var report_analyzer_default = ":host {\n    all: initial !important;\n    position: fixed !important;\n    inset: auto 16px 16px auto !important;\n    z-index: 2147483647 !important;\n    display: block !important;\n    width: 48px !important;\n    height: 48px !important;\n    color-scheme: dark;\n}\n\n* {\n    box-sizing: border-box;\n}\n\ndiv {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n}\n\n[hidden] {\n    display: none !important;\n}\n\nbutton,\ntextarea,\nselect {\n    font: inherit;\n    color: #e7f1f6;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    padding: 6px 12px;\n}\n\nbutton {\n    cursor: pointer;\n}\n\nbutton:hover {\n    background: #244657;\n}\n\nbutton:focus-visible,\ntextarea:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\nselect:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.settings-dialog {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    color-scheme: dark;\n    background: #101e27;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 20px;\n    width: min(420px, calc(100vw - 32px));\n    max-height: calc(100dvh - 32px);\n    margin: auto;\n    overflow: auto;\n}\n\n.settings-dialog::backdrop {\n    background: #0009;\n}\n\n.settings-dialog fieldset {\n    border: 1px solid #547488;\n    margin: 12px 0;\n    padding: 12px;\n}\n\n.settings-dialog label {\n    display: block;\n    margin-bottom: 6px;\n}\n\n.settings-dialog select {\n    width: 100%;\n}\n\n.settings-actions {\n    display: flex;\n    flex-wrap: wrap;\n    justify-content: flex-end;\n    gap: 8px;\n}\n\n.trigger {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    width: 48px;\n    height: 48px;\n    border-radius: 50%;\n    font-size: 20px;\n}\n\n.material-icons {\n    font-family: 'Astro Empires Material Icons';\n    font-size: 24px;\n    font-weight: 400;\n    font-style: normal;\n    line-height: 1;\n    letter-spacing: normal;\n    text-transform: none;\n    white-space: nowrap;\n    direction: ltr;\n    font-feature-settings: 'liga';\n}\n\n.feature-list {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    width: max-content;\n    max-width: calc(100vw - 32px);\n}\n\n.panel {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    width: min(440px, calc(100vw - 32px));\n    max-height: calc(100dvh - 92px);\n    overflow: auto;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 16px;\n    background: #101e27;\n    box-shadow: 0 6px 24px #0008;\n    overflow-wrap: anywhere;\n}\n\nheader {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    gap: 8px;\n    margin-bottom: 12px;\n}\n\nh2,\nh3,\nh4,\np {\n    margin: 0 0 8px;\n}\n\nh2 {\n    font-size: 18px;\n}\n\nh3,\nh4 {\n    font-size: 14px;\n}\n\ntextarea {\n    display: block;\n    width: 100%;\n    resize: vertical;\n    min-height: 80px;\n    margin: 4px 0 8px;\n    background: #07131c;\n}\n\n.results,\n.side {\n    margin-top: 16px;\n}\n\ndl {\n    display: grid;\n    grid-template-columns: 1fr max-content;\n    gap: 4px 12px;\n    margin: 0 0 12px;\n}\n\ndd {\n    margin: 0;\n    font-variant-numeric: tabular-nums;\n}\n\nul {\n    margin: 0 0 8px;\n    padding-left: 20px;\n}\n\n.note {\n    color: #afc5d2;\n}\n";
+	var report_analyzer_default = ":host {\n    all: initial !important;\n    position: fixed !important;\n    inset: auto 16px 16px auto !important;\n    z-index: 2147483647 !important;\n    display: block !important;\n    width: 48px !important;\n    height: 48px !important;\n    color-scheme: dark;\n}\n\n* {\n    box-sizing: border-box;\n}\n\ndiv {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n}\n\n[hidden] {\n    display: none !important;\n}\n\nbutton,\ntextarea,\nselect {\n    font: inherit;\n    color: #e7f1f6;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    padding: 6px 12px;\n}\n\nbutton {\n    cursor: pointer;\n}\n\nbutton:hover {\n    background: #244657;\n}\n\nbutton:focus-visible,\ntextarea:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\nselect:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.settings-dialog,\n.help-dialog {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    color-scheme: dark;\n    background: #101e27;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 20px;\n    width: min(420px, calc(100vw - 32px));\n    max-height: calc(100dvh - 32px);\n    margin: auto;\n    overflow: auto;\n}\n\n.settings-dialog::backdrop,\n.help-dialog::backdrop {\n    background: #0009;\n}\n\n.help-dialog {\n    width: min(640px, calc(100vw - 32px));\n    overflow-wrap: anywhere;\n}\n\n.help-dialog section {\n    margin: 20px 0;\n}\n\n.help-dialog h3 {\n    color: #91daff;\n    font-size: 16px;\n}\n\n.settings-dialog fieldset {\n    border: 1px solid #547488;\n    margin: 12px 0;\n    padding: 12px;\n}\n\n.settings-dialog label {\n    display: block;\n    margin-bottom: 6px;\n}\n\n.settings-dialog select {\n    width: 100%;\n}\n\n.settings-actions {\n    display: flex;\n    flex-wrap: wrap;\n    justify-content: flex-end;\n    gap: 8px;\n}\n\n.trigger {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    width: 48px;\n    height: 48px;\n    border-radius: 50%;\n    font-size: 20px;\n}\n\n.material-icons {\n    font-family: 'Astro Empires Material Icons';\n    font-size: 24px;\n    font-weight: 400;\n    font-style: normal;\n    line-height: 1;\n    letter-spacing: normal;\n    text-transform: none;\n    white-space: nowrap;\n    direction: ltr;\n    font-feature-settings: 'liga';\n}\n\n.feature-list {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    width: max-content;\n    max-width: calc(100vw - 32px);\n}\n\n.panel {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    width: min(440px, calc(100vw - 32px));\n    max-height: calc(100dvh - 92px);\n    overflow: auto;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 16px;\n    background: #101e27;\n    box-shadow: 0 6px 24px #0008;\n    overflow-wrap: anywhere;\n}\n\nheader {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    gap: 8px;\n    margin-bottom: 12px;\n}\n\nh2,\nh3,\nh4,\np {\n    margin: 0 0 8px;\n}\n\nh2 {\n    font-size: 18px;\n}\n\nh3,\nh4 {\n    font-size: 14px;\n}\n\ntextarea {\n    display: block;\n    width: 100%;\n    resize: vertical;\n    min-height: 80px;\n    margin: 4px 0 8px;\n    background: #07131c;\n}\n\n.results,\n.side {\n    margin-top: 16px;\n}\n\ndl {\n    display: grid;\n    grid-template-columns: 1fr max-content;\n    gap: 4px 12px;\n    margin: 0 0 12px;\n}\n\ndd {\n    margin: 0;\n    font-variant-numeric: tabular-nums;\n}\n\nul {\n    margin: 0 0 8px;\n    padding-left: 20px;\n}\n\n.note {\n    color: #afc5d2;\n}\n";
 	var settingsKey = "astro-empires-settings";
 	var needsLanguageChoice = (0, vue.ref)(false);
 	function readSettings(storage) {
@@ -5321,6 +5353,82 @@ dd {
 			]);
 		}
 	});
+	var sections = [
+		{
+			title: "copyReport",
+			text: ["helpReportPages", "helpReportCopy"]
+		},
+		{
+			title: "analyzeBbcode",
+			text: ["helpAnalyzePaste", "helpAnalyzeResults"]
+		},
+		{
+			title: "importCalculator",
+			text: ["helpImport", "helpImportErrors"]
+		},
+		{
+			title: "helpFleetCombat",
+			text: ["helpFleet", "helpCombat"]
+		},
+		{
+			title: "estimatedArrival",
+			text: ["helpArrival", "helpClocks"]
+		},
+		{
+			title: "settings",
+			text: ["helpLanguageFirst", "helpLanguageSettings"]
+		}
+	];
+	var HelpDialog = (0, vue.defineComponent)({
+		emits: ["closed"],
+		setup(_, { expose, emit }) {
+			const dialog = (0, vue.ref)(null);
+			const title = (0, vue.ref)(null);
+			let shown = false;
+			async function open() {
+				await (0, vue.nextTick)();
+				if (!dialog.value?.open) {
+					shown = true;
+					dialog.value?.showModal();
+					title.value?.focus();
+				}
+			}
+			function finish() {
+				if (!shown || dialog.value?.open) return;
+				shown = false;
+				emit("closed");
+			}
+			function close() {
+				dialog.value?.close();
+				finish();
+			}
+			expose({ open });
+			return () => (0, vue.h)("dialog", {
+				ref: dialog,
+				id: "astro-empires-help",
+				class: "help-dialog",
+				lang: language.value,
+				"aria-labelledby": "astro-empires-help-title",
+				onClose: finish,
+				onCancel: (event) => {
+					event.preventDefault();
+					close();
+				}
+			}, [
+				(0, vue.h)("h2", {
+					ref: title,
+					id: "astro-empires-help-title",
+					tabindex: -1
+				}, t("helpTitle")),
+				(0, vue.h)("p", t("helpIntro")),
+				...sections.map((section) => (0, vue.h)("section", [(0, vue.h)("h3", t(section.title)), ...section.text.map((key) => (0, vue.h)("p", t(key)))])),
+				(0, vue.h)("div", { class: "settings-actions" }, [(0, vue.h)("button", {
+					type: "button",
+					onClick: close
+				}, t("close"))])
+			]);
+		}
+	});
 	var panelId = "astro-empires-report-analyzer";
 	var materialIconsUrl = "https://fonts.gstatic.com/s/materialicons/v145/flUhRq6tzZclQEJ-Vdg-IuiaDsNZ.ttf";
 	function mountReportAnalyzer() {
@@ -5345,6 +5453,8 @@ dd {
 			const settingsButton = (0, vue.ref)(null);
 			const settingsDialog = (0, vue.ref)(null);
 			const returningFromSettings = (0, vue.ref)(false);
+			const helpButton = (0, vue.ref)(null);
+			const helpDialog = (0, vue.ref)(null);
 			new FontFace("Astro Empires Material Icons", `url("${materialIconsUrl}") format("truetype")`, {
 				style: "normal",
 				weight: "400"
@@ -5417,19 +5527,32 @@ dd {
 					hidden: view.value !== "menu",
 					role: "group",
 					"aria-label": t("menu")
-				}, [(0, vue.h)("button", {
-					ref: analysisButton,
-					type: "button",
-					onClick: () => show("analysis")
-				}, t("analyzeBbcode")), (0, vue.h)("button", {
-					ref: settingsButton,
-					type: "button",
-					onClick: () => {
-						returningFromSettings.value = true;
-						view.value = null;
-						settingsDialog.value?.open();
-					}
-				}, t("settings"))]),
+				}, [
+					(0, vue.h)("button", {
+						ref: analysisButton,
+						type: "button",
+						onClick: () => show("analysis")
+					}, t("analyzeBbcode")),
+					(0, vue.h)("button", {
+						ref: settingsButton,
+						type: "button",
+						onClick: () => {
+							returningFromSettings.value = true;
+							view.value = null;
+							settingsDialog.value?.open();
+						}
+					}, t("settings")),
+					(0, vue.h)("button", {
+						ref: helpButton,
+						type: "button",
+						"aria-haspopup": "dialog",
+						"aria-controls": "astro-empires-help",
+						onClick: () => {
+							view.value = null;
+							helpDialog.value?.open();
+						}
+					}, t("help"))
+				]),
 				(0, vue.h)("section", {
 					id: `${panelId}-panel`,
 					class: "panel",
@@ -5493,6 +5616,13 @@ dd {
 							await show("menu");
 							settingsButton.value?.focus();
 						} else trigger.value?.focus();
+					}
+				}),
+				(0, vue.h)(HelpDialog, {
+					ref: helpDialog,
+					onClosed: async () => {
+						await show("menu");
+						helpButton.value?.focus();
 					}
 				})
 			]);

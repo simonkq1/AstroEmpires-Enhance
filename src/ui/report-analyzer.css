@@ -54,7 +54,8 @@ select:focus-visible {
     outline-offset: 2px;
 }
 
-.settings-dialog {
+.settings-dialog,
+.help-dialog {
     font: 14px/1.5 system-ui, sans-serif;
     color: #e7f1f6;
     color-scheme: dark;
@@ -68,8 +69,23 @@ select:focus-visible {
     overflow: auto;
 }
 
-.settings-dialog::backdrop {
+.settings-dialog::backdrop,
+.help-dialog::backdrop {
     background: #0009;
+}
+
+.help-dialog {
+    width: min(640px, calc(100vw - 32px));
+    overflow-wrap: anywhere;
+}
+
+.help-dialog section {
+    margin: 20px 0;
+}
+
+.help-dialog h3 {
+    color: #91daff;
+    font-size: 16px;
 }
 
 .settings-dialog fieldset {

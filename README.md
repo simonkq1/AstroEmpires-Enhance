@@ -4,6 +4,8 @@
 
 [Borealis 遊戲名稱中英對照總表](./docs/borealis-glossary.md)
 
+Greasy Fork 說明文件：[簡體中文](./docs/greasyfork.zh-CN.md) · [English](./docs/greasyfork.en.md)。可分別貼入對應語言的腳本說明欄。
+
 ## 架構
 
 - [`dist/astroempires.user.js`](./dist/astroempires.user.js) 是 Vite 產生、納入 Git 的單檔安裝成品。使用者可直接安裝，開發時請編輯 `src/` 內的 TypeScript 原始碼。
@@ -24,6 +26,12 @@
 設定保存在目前瀏覽器的 Borealis 網站儲存空間，使用 `astro-empires-settings` 鍵。無法儲存時會顯示提示，所選語言仍套用於本頁。
 
 介面語言與複製艦隊名稱的語言可分別選擇，戰報 BBCode 保留來源頁面的文字。AEBits 匯入依設定開啟中文或英文模擬器。
+
+## 功能使用說明
+
+點擊右下角浮動按鈕，在功能清單選擇「说明 / Help」，即可開啟置中的使用說明。內容涵蓋戰報 BBCode 複製與分析、AEBits 匯入、艦隊詳情與戰鬥頁工具、抵達時間及語言設定，跟隨目前的簡體中文或英文介面。
+
+視窗內容可捲動，支援窄螢幕。點擊「关闭 / Close」或按 Esc，會返回功能清單並將焦點移回說明按鈕。開關說明視窗不會清除已貼上的戰報或分析結果。
 
 ## 戰報 BBCode 轉換與分析
 
@@ -82,4 +90,4 @@ npm run check
 
 `npm run build` 會先檢查型別，再更新 `dist/astroempires.user.js`。`npm run check` 會檢查型別、執行測試，並將暫存目錄的建置結果與安裝檔逐位元組比對。
 
-建置後可用 `npm run test:browser` 測試首次語言選擇、設定與即時語言切換、浮動戰報分析、Shadow DOM 樣式隔離、雙語複製、AEBits 匯入與抵達時間預測。預設使用 macOS 的 Google Chrome 或命令列的 `chromium`，可用 `CHROME_BIN` 指定執行檔。
+建置後可用 `npm run test:browser` 測試首次語言選擇、設定與即時語言切換、雙語使用說明視窗、浮動戰報分析、Shadow DOM 樣式隔離、雙語複製、AEBits 匯入與抵達時間預測。預設使用 macOS 的 Google Chrome 或命令列的 `chromium`，可用 `CHROME_BIN` 指定執行檔。

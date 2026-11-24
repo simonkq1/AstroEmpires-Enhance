@@ -4,6 +4,7 @@ import { analyzeReport, buildReportCalculatorUrl } from '../report.ts';
 import styles from './report-analyzer.css?inline';
 import { language, msg, t, type Message } from '../i18n.ts';
 import { SettingsDialog } from './settings-dialog.ts';
+import { HelpDialog } from './help-dialog.ts';
 
 const panelId = 'astro-empires-report-analyzer';
 const materialIconsUrl = 'https://fonts.gstatic.com/s/materialicons/v145/flUhRq6tzZclQEJ-Vdg-IuiaDsNZ.ttf';
@@ -32,6 +33,8 @@ export function mountReportAnalyzer(): void {
             const settingsButton = ref<HTMLButtonElement | null>(null);
             const settingsDialog = ref<{ open(initial?: boolean): Promise<void> } | null>(null);
             const returningFromSettings = ref(false);
+            const helpButton = ref<HTMLButtonElement | null>(null);
+            const helpDialog = ref<{ open(): Promise<void> } | null>(null);
 
             const font = new FontFace('Astro Empires Material Icons', `url("${materialIconsUrl}") format("truetype")`, {
                 style: 'normal', weight: '400',
@@ -116,6 +119,10 @@ export function mountReportAnalyzer(): void {
                         view.value = null;
                         void settingsDialog.value?.open();
                     } }, t('settings')),
+                    h('button', { ref: helpButton, type: 'button', 'aria-haspopup': 'dialog', 'aria-controls': 'astro-empires-help', onClick: () => {
+                        view.value = null;
+                        void helpDialog.value?.open();
+                    } }, t('help')),
                 ]),
                 h('section', {
                     id: `${panelId}-panel`, class: 'panel', hidden: view.value !== 'analysis',
@@ -156,6 +163,10 @@ export function mountReportAnalyzer(): void {
                         await show('menu');
                         settingsButton.value?.focus();
                     } else trigger.value?.focus();
+                } }),
+                h(HelpDialog, { ref: helpDialog, onClosed: async () => {
+                    await show('menu');
+                    helpButton.value?.focus();
                 } }),
             ]);
         },

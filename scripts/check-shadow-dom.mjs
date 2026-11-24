@@ -105,6 +105,57 @@ async function verifySettings() {
             close() { if (dialog.open) dialog.close(); frame.remove(); } };
     }
 
+    async function verifyHelp(current, locale) {
+        const { root, child } = current;
+        const menu = root.querySelector('.feature-list');
+        const trigger = root.querySelector('.trigger');
+        const entry = menu.querySelector('[aria-controls="astro-empires-help"]');
+        const help = root.querySelector('.help-dialog');
+        const input = root.querySelector('textarea').value;
+        const result = root.querySelector('.results').textContent;
+        const chinese = locale === 'zh-CN';
+        ensure(entry.textContent === (chinese ? '说明' : 'Help'), 'Help entry should follow the selected language');
+        if (menu.hidden) { trigger.click(); await settle(); trigger.click(); await settle(); }
+        entry.click(); await settle();
+        ensure(help.open && help.matches(':modal') && menu.hidden && help.lang === locale,
+            'Help should replace the feature list with a native modal in the current language');
+        ensure(root.activeElement === help.querySelector('h2') && help.getAttribute('aria-labelledby') === help.querySelector('h2').id,
+            'Help should focus its accessible title for reading');
+        const expected = chinese
+            ? ['复制战报 BBCode', '分析 BBCode', '导入 AEBits 战斗模拟器', '舰队详情与战斗页', '预计到达', '设置']
+            : ['Copy battle report BBCode', 'Analyze BBCode', 'Import into AEBits Battle Calculator', 'Fleet details and combat pages', 'Estimated arrival', 'Settings'];
+        ensure(JSON.stringify([...help.querySelectorAll('h3')].map(title => title.textContent)) === JSON.stringify(expected) &&
+            [...help.querySelectorAll('section')].every(section => section.querySelectorAll('p').length === 2),
+            'Help should describe every feature with translated usage instructions');
+        ensure(help.textContent.includes('messages.aspx') && help.textContent.includes('board.aspx') &&
+            help.textContent.includes('combat.aspx') && help.textContent.includes('view=move') && help.textContent.includes('GMT+1'),
+            'Help should identify the supported pages and server clock');
+        const bounds = help.getBoundingClientRect();
+        ensure(Math.abs(bounds.left + bounds.width / 2 - child.innerWidth / 2) < 2 &&
+            Math.abs(bounds.top + bounds.height / 2 - child.innerHeight / 2) < 2 && bounds.width <= child.innerWidth - 30 &&
+            bounds.top >= 0 && bounds.bottom <= child.innerHeight && help.scrollHeight > help.clientHeight,
+            'Help should be centered, scrollable and fit the narrow viewport');
+        help.scrollTop = help.scrollHeight;
+        ensure(help.scrollTop > 0 && child.getComputedStyle(help).overflowY === 'auto' &&
+            child.getComputedStyle(help.querySelector('button')).display !== 'none',
+            'Help content should scroll and ignore the game button styles');
+        current.run(); await settle();
+        ensure(root.querySelectorAll('.help-dialog').length === 1 && menu.querySelectorAll('[aria-controls="astro-empires-help"]').length === 1 && help.open,
+            'Repeated initialization should keep a single open help dialog and menu entry');
+        await current.click(chinese ? '关闭' : 'Close', help);
+        ensure(!help.open && !menu.hidden && root.activeElement === entry,
+            'Closing Help should restore the menu and focus its entry');
+        entry.click(); await settle();
+        ensure(root.activeElement === help.querySelector('h2') && help.scrollTop === 0, 'Reopening Help should start at the title');
+        help.requestClose(); await settle();
+        ensure(!help.open && !menu.hidden && root.activeElement === entry,
+            'Native Escape cancellation should return to the Help menu entry');
+        await current.analyze();
+        ensure(root.querySelector('textarea').value === input && root.querySelector('.results').textContent === result,
+            'Opening and closing Help should preserve report input and analysis results');
+        ensure(child.document.head.innerHTML === current.head, 'Help styles must stay in Shadow DOM');
+    }
+
     let current = await page('fleet.aspx?fleet=1');
     ensure(current.dialog.open && current.dialog.textContent.includes('选择语言 / Choose language') && current.dialog.querySelector('select').value === 'en',
         'Missing settings should show a bilingual first-use dialog with English selected');
@@ -134,12 +185,14 @@ async function verifySettings() {
     const copiedText = fleet.querySelector('textarea').value;
     await current.analyze(reportFixture.tables);
     ensure(current.root.querySelector('.results').textContent.includes('缺少指挥中心'), 'Analysis reasons should use the selected language');
+    await verifyHelp(current, 'zh-CN');
     await current.save('en');
     ensure(current.root.activeElement === current.root.querySelectorAll('.feature-list button')[1], 'Settings should restore focus to its menu entry');
     ensure(fleet.querySelector('button').textContent === 'Copy fleet data' && fleet.querySelector('[role=status]').textContent.includes('Clipboard access failed') &&
         fleet.querySelector('textarea').value === copiedText, 'Existing fleet controls and statuses should translate live while retaining manual-copy text');
     ensure(current.root.querySelector('textarea').value === reportFixture.tables && current.root.querySelector('.results').textContent.includes('Armour (ARM)') &&
         current.root.querySelector('.results').textContent.includes('bonuses are missing'), 'Analysis input, numeric results and warnings should survive a live language switch');
+    await verifyHelp(current, 'en');
     await current.analyze();
     await current.click('Import into AEBits Battle Calculator');
     const englishUrl = new URL(current.state.opened.at(-1)[0]);
@@ -821,7 +874,7 @@ try {
     if (result.error) throw result.error;
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout.match(/<body[^>]*>/)?.[0] ?? '', /data-result="pass"/);
-    console.log('57 份中英文戰報 BBCode 轉換與匯入、雙語設定及既有功能通過瀏覽器測試。');
+    console.log('57 份中英文戰報 BBCode 轉換與匯入、雙語設定與使用說明及既有功能通過瀏覽器測試。');
 } finally {
     rmSync(directory, { recursive: true, force: true });
 }
