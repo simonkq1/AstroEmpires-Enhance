@@ -54,10 +54,10 @@ test('訊息及巢狀參數可隨顯示語言重新翻譯', () => {
     })] });
     assert.match(t(message, 'en'), /Defender.*Planetary Shield.*invalid initial quantity/);
     assert.match(t(message, 'zh-CN'), /守方.*Planetary Shield.*初始数量无效/);
-    const analysis = analyzeReport(fixture.tables);
-    assert.equal(analysis.attacker.reasons.LAS.key, 'missingAttackBonus');
-    assert.match(t(analysis.attacker.reasons.LAS, 'en'), /bonuses are missing/);
-    assert.match(t(analysis.attacker.reasons.LAS, 'zh-CN'), /缺少指挥中心/);
+    const analysis = analyzeReport(fixture.tables.replace('[b]攻击舰队[/b]', '[b]防御舰队[/b]'));
+    assert.equal(analysis.defender.reasons.LAS.key, 'missingAttackBonus');
+    assert.match(t(analysis.defender.reasons.LAS, 'en'), /bonuses are missing/);
+    assert.match(t(analysis.defender.reasons.LAS, 'zh-CN'), /缺少指挥中心/);
 });
 
 test('AEBits 依語言切換路徑，兵力與科技參數一致', () => {

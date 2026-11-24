@@ -8,10 +8,13 @@ import packageInfo from '../package.json' with { type: 'json' };
 import reportFixture from '../test/fixtures/report.json' with { type: 'json' };
 import reportPages from '../test/fixtures/report-pages.json' with { type: 'json' };
 import englishReportPages from '../test/fixtures/report-pages-en.json' with { type: 'json' };
+import combatBase from '../test/fixtures/combat-base.json' with { type: 'json' };
+import basePages from '../test/fixtures/base-pages.json' with { type: 'json' };
 
 const chrome = process.env.CHROME_BIN ?? (process.platform === 'darwin'
     ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'chromium');
 const source = readFileSync(new URL('../dist/astroempires.user.js', import.meta.url), 'utf8');
+const fleetFractional = readFileSync(new URL('../test/fixtures/fleet-fractional.html', import.meta.url), 'utf8');
 const vue = readFileSync(new URL(import.meta.resolve('vue/dist/vue.runtime.global.prod.js')), 'utf8');
 const expectedRequire = `https://cdn.jsdelivr.net/npm/vue@${packageInfo.dependencies.vue}/dist/vue.runtime.global.prod.js`;
 assert.deepEqual([...source.matchAll(/^\/\/ @require\s+(\S+)$/gm)].map(match => match[1]), [expectedRequire]);
@@ -24,6 +27,9 @@ const program = ${JSON.stringify(source).replace(/<\//g, '<\\/')};
 const reportFixture = ${JSON.stringify(reportFixture).replace(/<\//g, '<\\/')};
 const reportPages = ${JSON.stringify(reportPages).replace(/<\//g, '<\\/')};
 const englishReportPages = ${JSON.stringify(englishReportPages).replace(/<\//g, '<\\/')};
+const combatBase = ${JSON.stringify(combatBase).replace(/<\//g, '<\\/')};
+const basePages = ${JSON.stringify(basePages).replace(/<\//g, '<\\/')};
+const fleetFractional = ${JSON.stringify(fleetFractional).replace(/<\//g, '<\\/')};
 const vueProgram = ${JSON.stringify(vue).replace(/<\//g, '<\\/')};
 localStorage.setItem('astro-empires-settings', JSON.stringify({ language: 'zh-CN' }));
 
@@ -35,7 +41,7 @@ async function verifySettings() {
     let saved = null;
     const storage = { getItem: () => saved, setItem(_, value) { saved = value; } };
 
-    async function page(path, html = fleetHtml, store = storage) {
+    async function page(path, html = fleetHtml, store = storage, fetchBase = async () => { throw new Error('Base unavailable'); }) {
         const frame = document.createElement('iframe');
         frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647';
         const loaded = new Promise(resolve => { frame.onload = resolve; });
@@ -44,9 +50,10 @@ async function verifySettings() {
         await loaded;
         const child = frame.contentWindow;
         child.eval(vueProgram);
-        const state = { copied: '', blocked: false, opened: [] };
+        const state = { copied: '', blocked: false, opened: [], requests: [] };
         const targetWindow = new Proxy(child, { get(target, name) {
             if (name === 'open') return (...args) => state.opened.push(args);
+            if (name === 'fetch') return (url, options) => { state.requests.push({ url, options }); return fetchBase(url, options); };
             const value = Reflect.get(target, name, target);
             return typeof value === 'function' ? value.bind(target) : value;
         } });
@@ -122,14 +129,24 @@ async function verifySettings() {
         ensure(root.activeElement === help.querySelector('h2') && help.getAttribute('aria-labelledby') === help.querySelector('h2').id,
             'Help should focus its accessible title for reading');
         const expected = chinese
-            ? ['复制战报 BBCode', '分析 BBCode', '导入 AEBits 战斗模拟器', '舰队详情与战斗页', '预计到达', '设置']
-            : ['Copy battle report BBCode', 'Analyze BBCode', 'Import into AEBits Battle Calculator', 'Fleet details and combat pages', 'Estimated arrival', 'Settings'];
+            ? ['复制战报 BBCode', '分析 BBCode', '导入 AEBits 战斗模拟器', '舰队详情与战斗页', '基地经济与基地数量', '预计到达', '设置', '许可证']
+            : ['Copy battle report BBCode', 'Analyze BBCode', 'Import into AEBits Battle Calculator', 'Fleet details and combat pages', 'Base economy and base count', 'Estimated arrival', 'Settings', 'License'];
         ensure(JSON.stringify([...help.querySelectorAll('h3')].map(title => title.textContent)) === JSON.stringify(expected) &&
             [...help.querySelectorAll('section')].every(section => section.querySelectorAll('p').length === 2),
             'Help should describe every feature with translated usage instructions');
         ensure(help.textContent.includes('messages.aspx') && help.textContent.includes('board.aspx') &&
             help.textContent.includes('combat.aspx') && help.textContent.includes('view=move') && help.textContent.includes('GMT+1'),
             'Help should identify the supported pages and server clock');
+        const notice = help.querySelector('.license-notice');
+        ensure(notice.textContent.includes('Copyright (C) 2026 simonkq1') && notice.textContent.includes('GPL-3.0-or-later') &&
+            notice.textContent.includes(chinese ? '不提供任何担保' : 'WITHOUT ANY WARRANTY') &&
+            notice.textContent.includes(chinese ? '第三方库' : 'Third-party libraries'),
+            'Help should display translated license, warranty and third-party notices');
+        const links = [...notice.querySelectorAll('a')];
+        ensure(links[0].href === 'https://www.gnu.org/licenses/gpl-3.0.html' && links[0].textContent === (chinese ? 'GPLv3 完整条款' : 'Full GPLv3 terms') &&
+            links[1].href === 'https://github.com/simonkq1/AstroEmpires-Enhance' && links[1].textContent === (chinese ? '源代码' : 'Source code') &&
+            links.every(link => link.target === '_blank' && link.rel === 'noopener noreferrer'),
+            'Help should provide accessible license and source links in both languages');
         const bounds = help.getBoundingClientRect();
         ensure(Math.abs(bounds.left + bounds.width / 2 - child.innerWidth / 2) < 2 &&
             Math.abs(bounds.top + bounds.height / 2 - child.innerHeight / 2) < 2 && bounds.width <= child.innerWidth - 30 &&
@@ -184,19 +201,19 @@ async function verifySettings() {
     ensure(fleet.querySelector('[role=status]').textContent.includes('无法访问剪贴板'), 'Chinese clipboard errors should be translated');
     const copiedText = fleet.querySelector('textarea').value;
     await current.analyze(reportFixture.tables);
-    ensure(current.root.querySelector('.results').textContent.includes('缺少指挥中心'), 'Analysis reasons should use the selected language');
+    ensure(current.root.querySelector('.results').textContent.includes('基地防御受损'), 'Analysis reasons should use the selected language');
     await verifyHelp(current, 'zh-CN');
     await current.save('en');
     ensure(current.root.activeElement === current.root.querySelectorAll('.feature-list button')[1], 'Settings should restore focus to its menu entry');
     ensure(fleet.querySelector('button').textContent === 'Copy fleet data' && fleet.querySelector('[role=status]').textContent.includes('Clipboard access failed') &&
         fleet.querySelector('textarea').value === copiedText, 'Existing fleet controls and statuses should translate live while retaining manual-copy text');
     ensure(current.root.querySelector('textarea').value === reportFixture.tables && current.root.querySelector('.results').textContent.includes('Armour (ARM)') &&
-        current.root.querySelector('.results').textContent.includes('bonuses are missing'), 'Analysis input, numeric results and warnings should survive a live language switch');
+        current.root.querySelector('.results').textContent.includes('Base defenses are damaged'), 'Analysis input, numeric results and warnings should survive a live language switch');
     await verifyHelp(current, 'en');
     await current.analyze();
     await current.click('Import into AEBits Battle Calculator');
     const englishUrl = new URL(current.state.opened.at(-1)[0]);
-    ensure(englishUrl.pathname === '/en/aeBattleCalc' && englishUrl.searchParams.get('aT') === 'ARM:24,SLD:15', 'English analysis should import confirmed levels into the English calculator');
+    ensure(englishUrl.pathname === '/en/aeBattleCalc' && englishUrl.searchParams.get('aT') === 'LAS:23,ARM:24,PLA:16,ION:12,SLD:15', 'English analysis should import confirmed levels into the English calculator');
     current.state.blocked = false;
     await current.click('Copy fleet data', fleet);
     await current.click('Simplified Chinese', fleet);
@@ -255,6 +272,229 @@ async function verifySettings() {
     await current.click('AEBits Battle Calculator', combat);
     ensure(new URL(current.state.opened.at(-1)[0]).pathname === '/en/aeBattleCalc', 'Combat import should use English when selected');
     current.close();
+
+    const translations = [
+        ['攻击舰队', 'Attack Force'], ['防御舰队', 'Defensive Force'], ['玩家', 'Player'], ['舰队名称', 'Fleet Name'],
+        ['初始防御', 'Start Defenses'], ['战后防御', 'End Defenses'], ['指挥中心', 'Command Centers'], ['指挥官', 'Commander'],
+        ['建筑精通', 'Construction'], ['科研精通', 'Research'], ['生产精通', 'Production'],
+        ['防御精通', 'Defense'], ['战术精通', 'Tactical'], ['后勤精通', 'Logistics'],
+        ['战斗机', 'Fighters'], ['轰炸机', 'Bombers'], ['炮艇', 'Corvette'], ['侦察机', 'Scout Ship'],
+        ['舰队级母舰', 'Fleet Carrier'], ['无畏舰', 'Dreadnought'], ['离子炮塔', 'Ion Turrets'],
+        ['裂解炮塔', 'Disruptor Turrets'], ['行星护盾', 'Planetary Shield'], ['女神的项链', 'Planetary Ring'],
+        ['舰船', 'Unit'], ['初始数量', 'Start Quant.'], ['战后数量', 'End Quant.'], ['攻击', 'Attack'], ['装甲', 'Armour'], ['护盾', 'Shield'],
+    ];
+    const cases = [{ html: combatBase.html, commander: '建筑精通',
+        technologies: 'ARM:24,CC:3,DIS:5,ION:12,LAS:23,MIS:22,PHO:10,SLD:15',
+        forces: 'FT:2136,BO:300,CV:11,SS:1,FC:4,DN:1,IT:15,DT:15,PS:5,PR:10' }];
+    cases.push({ ...cases[0], html: combatBase.html.replace(
+        '<tr class="battle-report_subtitle"><th colspan="2">攻击舰队</th></tr>',
+        '<tr><th colspan="2">攻击舰队</th></tr>') });
+    cases.push({ ...cases[0], html: combatBase.html.replace('攻击舰队</th></tr>',
+        '攻击舰队</th></tr><tr><td>指挥中心</td><td>99</td></tr><tr><td>指挥官</td><td>Commander (战术精通 14)</td></tr>') });
+    for (const [commander, shipAttack, defenseAttack, defenseArmour, bonus] of [
+        ['建筑精通', 4.94, 6.4, 4400, ''], ['科研精通', 4.94, 6.4, 4400, ''],
+        ['生产精通', 4.94, 6.4, 4400, ''], ['后勤精通', 4.94, 6.4, 4400, ''],
+        ['防御精通', 4.94, 7.3, 5016, 'DfC:14'], ['战术精通', 5.55, 6.4, 4400, 'TaC:14'],
+    ]) {
+        const minimal = document.createElement('div');
+        minimal.innerHTML = combatBase.html.replace('建筑精通', commander);
+        for (const row of [...minimal.querySelector('.battle-report_defense').rows]) {
+            if (row.cells[0].tagName !== 'TD') continue;
+            if (row.cells[0].textContent === '战斗机') row.cells[3].textContent = shipAttack;
+            else if (row.cells[0].textContent === '行星护盾') {
+                row.cells[3].textContent = defenseAttack; row.cells[4].textContent = defenseArmour;
+            } else row.remove();
+        }
+        cases.push({ html: minimal.innerHTML, commander, forces: 'FT:2136,PS:5',
+            technologies: ['ARM:24', 'CC:3', 'ION:12', 'LAS:23', 'SLD:15', bonus].filter(Boolean).sort().join(',') });
+    }
+    for (const locale of ['zh-CN', 'en']) for (const englishPage of [false, true]) for (const sample of cases) {
+        saved = JSON.stringify({ language: locale });
+        const html = englishPage ? translations.reduce((text, [from, to]) => text.replaceAll(from, to), sample.html) : sample.html;
+        current = await page('combat.aspx?fleet=1329837&attack=base&mission=conquer', html);
+        const english = locale === 'en';
+        const toolbar = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+        await current.click(english ? 'AEBits Battle Calculator' : 'AEBits 战斗计算器', toolbar);
+        const direct = new URL(current.state.opened.at(-1)[0]);
+        const sorted = (url, key) => url.searchParams.get(key).split(',').sort().join(',');
+        ensure(sorted(direct, 'aT') === 'ARM:25,LAS:23' && sorted(direct, 'dT') === sample.technologies &&
+            direct.searchParams.get('aS') === 'SS:1' && direct.searchParams.get('dS') === sample.forces && direct.searchParams.get('gv') === '5',
+            'Base combat import should use the correct commander bonuses, rounded statistics and forces: ' + sample.commander);
+        const copyRoot = current.child.document.querySelector('.battle-report').nextElementSibling.shadowRoot;
+        await current.click(english ? 'Copy battle report BBCode' : '复制战报 BBCode', copyRoot);
+        const commander = englishPage ? translations.find(([from]) => from === sample.commander)[1] : sample.commander;
+        ensure(current.state.copied.includes(commander + ' 14') &&
+            current.state.copied.includes((englishPage ? 'Command Centers' : '指挥中心') + '：3'),
+            'Copied BBCode should preserve the source commander text and command centers');
+        if (!englishPage && sample === cases[0]) ensure(current.state.copied === combatBase.bbcode, 'Attachment BBCode should preserve its complete table data');
+        await current.analyze(current.state.copied);
+        const sides = current.root.querySelectorAll('.side');
+        const pending = english ? 'Needs confirmation' : '待确认';
+        ensure(sides[0].textContent.includes(pending) && sides[0].textContent.includes('(SLD)') && !sides[1].textContent.includes(pending),
+            'Only the attacker shield should remain unresolved in the base examples');
+        await current.click(english ? 'Import into AEBits Battle Calculator' : '导入 AEBits 战斗模拟器');
+        const analyzed = new URL(current.state.opened.at(-1)[0]);
+        ensure(analyzed.pathname === (english ? '/en/aeBattleCalc' : '/zh/aeBattleCalc') &&
+            ['aS', 'dS', 'aT', 'dT', 'gv'].every(key => analyzed.searchParams.get(key) === direct.searchParams.get(key)),
+            'Direct combat import and BBCode import should match independently of page and interface languages');
+        current.close();
+    }
+
+    const mixedFleet = fleetFractional.replace('</tbody>',
+        '<tr><td>战斗机</td><td>0.01</td></tr><tr><td>轰炸机</td><td>1,000.25</td></tr></tbody>');
+    const tab = String.fromCharCode(9), newline = String.fromCharCode(10);
+    for (const locale of ['zh-CN', 'en']) for (const mixed of [false, true]) {
+        saved = JSON.stringify({ language: locale });
+        current = await page('fleet.aspx?fleet=1282779', mixed ? mixedFleet : fleetFractional);
+        const host = current.child.document.getElementById('astro-empires-fleet-actions');
+        ensure(host?.shadowRoot && current.child.document.querySelector('#fleet_overview table.listing').nextElementSibling === host,
+            'Fractional fleet attachment should mount its toolbar below the ship table');
+        const toolbar = host.shadowRoot;
+        current.run(); await settle();
+        ensure(current.child.document.querySelectorAll('#astro-empires-fleet-actions').length === 1,
+            'Fractional fleet initialization should not duplicate its toolbar');
+        const english = locale === 'en';
+        const chineseText = ['重型巡洋舰' + tab + '337.9', ...(mixed ? ['战斗机' + tab + '0.01', '轰炸机' + tab + '1000.25'] : [])].join(newline);
+        const englishText = ['Heavy Cruiser' + tab + '337.9', ...(mixed ? ['Fighters' + tab + '0.01', 'Bombers' + tab + '1000.25'] : [])].join(newline);
+        current.state.blocked = true;
+        await current.click(english ? 'Copy fleet data' : '复制舰队资料', toolbar);
+        await current.click(english ? 'English' : '英文', toolbar);
+        const backup = toolbar.querySelector('textarea');
+        ensure(!backup.hidden && backup.value === englishText && toolbar.activeElement === backup && backup.selectionEnd === englishText.length,
+            'Clipboard rejection should preserve and select all fractional fleet data');
+        current.state.blocked = false;
+        for (const [label, expected] of [[english ? 'Simplified Chinese' : '简体中文', chineseText], [english ? 'English' : '英文', englishText]]) {
+            await current.click(english ? 'Copy fleet data' : '复制舰队资料', toolbar);
+            await current.click(label, toolbar);
+            ensure(current.state.copied === expected && backup.hidden, 'Both fleet copy languages should retain fractional counts and row order');
+        }
+        for (const [label, key, other] of [[english ? 'Attacker' : '攻方', 'aS', 'dS'], [english ? 'Defender' : '守方', 'dS', 'aS']]) {
+            await current.click(english ? 'AEBits Battle Calculator' : 'AEBits 战斗计算器', toolbar);
+            await current.click(label, toolbar);
+            const calculator = new URL(current.state.opened.at(-1)[0]);
+            ensure(calculator.searchParams.get(key) === 'HC:337.9' + (mixed ? ',FT:0.01,BO:1000.25' : '') &&
+                !calculator.searchParams.has(other) && calculator.searchParams.get('gv') === '5',
+                'Fractional ships should import into only the selected side without rounding');
+        }
+        current.close();
+    }
+    for (const count of ['0', '-1', '1.234', 'invalid', '9007199254740992']) {
+        current = await page('fleet.aspx?fleet=1282779', fleetFractional.replace('337.9', count));
+        ensure(!current.child.document.getElementById('astro-empires-fleet-actions'), 'A fleet without valid positive quantities should keep its toolbar hidden');
+        current.close();
+    }
+    for (const path of ['fleet.aspx?fleet=0', 'fleet.aspx?fleet=-1', 'fleet.aspx?fleet=1.5', 'fleet.aspx',
+        'fleet.aspx?fleet=1282779&view=move', 'base.aspx?fleet=1282779']) {
+        current = await page(path, fleetFractional);
+        ensure(!current.child.document.getElementById('astro-empires-fleet-actions'), 'Fractional fleets must obey the existing page and fleet ID guards');
+        current.close();
+    }
+    current = await page('base.aspx', fleetFractional);
+    current.child.Function('location', program)(new URL('https://altair.astroempires.com/fleet.aspx?fleet=1282779'));
+    ensure(!current.child.document.getElementById('astro-empires-fleet-actions'), 'Fractional fleets must remain restricted to Borealis');
+    current.close();
+
+    const baseResponse = (url, html) => ({ ok: true, url, async text() { return html; } });
+    for (const [key, id, economy, count, reason] of [
+        ['playerZh', '26956', 133, 11, ''], ['playerEn', '26956', 133, 11, ''],
+        ['npcZh', '20404', 206, null, 'NPC'], ['npcEn', '20404', 206, null, 'NPC'],
+        ['occupiedZh', '21702', 126, null, '100'], ['occupiedEn', '21702', 126, null, '100'],
+    ]) {
+        for (const locale of ['zh-CN', 'en']) {
+            saved = JSON.stringify({ language: locale });
+            current = await page('base.aspx?base=' + id, basePages[key]);
+            const estimate = current.child.document.getElementById('astro-empires-base-estimate')?.shadowRoot;
+            ensure(estimate && estimate.querySelector('span').textContent === (count === null ? (locale === 'en' ? 'Unavailable' : '无法取得') : String(count)),
+                'Base page should show the inferred count or an unavailable result: ' + key);
+            ensure(!reason || estimate.textContent.includes(reason), 'Base page should explain NPC and recent pillage exclusions');
+            current.run(); await settle();
+            ensure(current.child.document.querySelectorAll('#astro-empires-base-estimate').length === 1 && current.state.requests.length === 0,
+                'Base display should initialize once and only read the current page');
+            await current.save(locale === 'en' ? 'zh-CN' : 'en');
+            ensure(estimate.querySelector('strong').textContent.includes(locale === 'en' ? '预计所有者基地数量' : "Estimated owner's base count"),
+                'Base estimate labels should follow live language changes');
+            ensure(current.child.document.head.innerHTML === current.head, 'Base estimate styles must remain in Shadow DOM');
+            current.close();
+
+            saved = JSON.stringify({ language: locale });
+            const report = combatBase.html.replace('<td>基地</td><td>1</td>', '<td>基地</td><td>' + id + '</td>');
+            current = await page('combat.aspx?fleet=1329837&attack=base', report, storage, async url => baseResponse(url, basePages[key]));
+            const toolbar = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+            current.run(); await settle();
+            ensure(current.state.requests.length === 1, 'Combat base data should be fetched once despite repeated initialization');
+            const request = current.state.requests[0];
+            ensure(request.url === 'https://borealis.astroempires.com/base.aspx?base=' + id && request.options.credentials === 'same-origin' &&
+                !request.options.method && request.options.signal, 'Combat base reads must use a same-origin GET without action parameters and with a timeout');
+            await current.click(locale === 'en' ? 'AEBits Battle Calculator' : 'AEBits 战斗计算器', toolbar);
+            const calculator = new URL(current.state.opened.at(-1)[0]);
+            const importedCount = key.startsWith('npc') ? 8 : count;
+            const income = key.startsWith('occupied') ? 89 : economy;
+            ensure(calculator.searchParams.get('p') === 'economy:' + economy + ',income:' + income + (importedCount === null ? '' : ',defenderBase:' + importedCount) &&
+                calculator.searchParams.get('aS') === 'SS:1' && calculator.searchParams.get('dS').startsWith('FT:2136') &&
+                calculator.searchParams.get('dT').includes('CC:3'), 'Base import should preserve fleets and technologies while adding only known economy fields');
+            ensure(!reason || [...toolbar.querySelectorAll('[role=status]')].some(status => status.textContent.includes(key.startsWith('npc') ? '8' : reason)),
+                'Unknown base counts should remain visible as manual confirmation notices');
+            current.close();
+        }
+    }
+    for (const name of ['联合殖民地', 'United Colonies']) {
+        const html = basePages.playerEn.replace('[BEX] Drekons Revenge', name);
+        current = await page('base.aspx?base=26956', html);
+        ensure(current.child.document.getElementById('astro-empires-base-estimate').shadowRoot.textContent.includes('NPC'),
+            'United Colonies names should be recognized as NPC without relying on player IDs');
+        current.close();
+        current = await page('combat.aspx?fleet=1329837&attack=base', combatBase.html, storage, async url => baseResponse(url, html));
+        const toolbar = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+        await current.click('AEBits Battle Calculator', toolbar);
+        ensure(new URL(current.state.opened.at(-1)[0]).searchParams.get('p') === 'economy:133,income:133',
+            'United Colonies should import known income and economy without a base count');
+        current.close();
+    }
+    current = await page('combat.aspx?fleet=1329837&attack=base', combatBase.html, storage,
+        async url => baseResponse(url, basePages.playerEn.replace('>133</div>', '>0/133</div>')));
+    const zeroIncomeToolbar = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+    await current.click('AEBits Battle Calculator', zeroIncomeToolbar);
+    ensure(new URL(current.state.opened.at(-1)[0]).searchParams.get('p') === 'economy:133,income:0',
+        'Zero income should be sent explicitly without being replaced by economy');
+    current.close();
+    let finishBase;
+    current = await page('combat.aspx?fleet=1329837&attack=base', combatBase.html, storage,
+        url => new Promise(resolve => { finishBase = () => resolve(baseResponse(url, basePages.playerEn)); }));
+    const loadingToolbar = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+    const calculatorButton = loadingToolbar.querySelectorAll('.actions > div > button, .actions > button')[1];
+    ensure(calculatorButton.disabled, 'AEBits should wait for the bounded base read');
+    await current.click('Copy fleet data', loadingToolbar); await current.click('Attacker English', loadingToolbar);
+    ensure(current.state.copied === 'Scout Ship' + tab + '1', 'Copying should stay available while base data loads');
+    finishBase(); await settle();
+    ensure(!calculatorButton.disabled, 'AEBits should become available when the base read finishes');
+    current.close();
+
+    for (const fetchBase of [
+        async () => { throw new Error('Network failure'); },
+        async () => { throw new DOMException('Timeout', 'TimeoutError'); },
+        async url => ({ ...baseResponse(url, basePages.playerEn), ok: false }),
+        async () => baseResponse('https://borealis.astroempires.com/login.aspx', basePages.playerEn),
+        async url => baseResponse(url, '<p>Login required</p>'),
+        async url => baseResponse(url, basePages.playerEn.replace('>133</div>', '>89/invalid</div>')),
+        async url => baseResponse(url.replace('base=1', 'base=2'), basePages.playerEn),
+    ]) {
+        saved = '{"language":"en"}';
+        current = await page('combat.aspx?fleet=1329837&attack=base', combatBase.html, storage, fetchBase);
+        const toolbar = current.child.document.getElementById('astro-empires-fleet-actions').shadowRoot;
+        await current.click('AEBits Battle Calculator', toolbar);
+        const calculator = new URL(current.state.opened.at(-1)[0]);
+        ensure(!calculator.searchParams.has('p') && calculator.searchParams.get('aS') === 'SS:1' && toolbar.textContent.includes('Could not read'),
+            'Failed base reads must omit all pillage fields without blocking fleet import');
+        current.close();
+    }
+    current = await page('combat.aspx?fleet=1329837&attack=base', combatBase.html.replace('<tr><td>基地</td><td>1</td></tr>', ''));
+    ensure(current.state.requests.length === 0, 'Missing target IDs must not trigger a guessed base request');
+    current.close();
+    for (const attack of ['fleet', '1327637']) {
+        current = await page('combat.aspx?fleet=1329837&attack=' + attack, combatBase.html);
+        ensure(current.state.requests.length === 0, 'Fleet attacks must not fetch base data');
+        current.close();
+    }
 }
 
 async function verifyAnalyzer() {
@@ -387,13 +627,14 @@ async function verifyAnalyzer() {
         'Editing the input should clear results and prevent stale imports');
     analyze.click();
     await settle();
-    ensure(Object.keys(readLevels()).length === 2 && root.querySelector('.side').textContent.includes('缺少指挥中心或指挥官'),
-        'Partial report should show only confirmed levels and missing modifiers');
+    ensure(Object.keys(readLevels()).length === 5 && !root.querySelector('.side').textContent.includes('待确认') &&
+        root.querySelectorAll('.side')[1].textContent.includes('基地防御受损'),
+        'Partial reports should infer attacker weapons without base bonuses while leaving defender limitations unresolved');
     importButton().click();
     await settle();
     const partialParams = importedParams();
-    ensure(partialParams.get('aT') === 'ARM:24,SLD:15' && !partialParams.has('dT') &&
-        partialParams.get('dS') === 'PS:0.01,PR:0.01' && root.querySelector('.side').textContent.includes('缺少指挥中心或指挥官'),
+    ensure(partialParams.get('aT') === 'LAS:23,ARM:24,PLA:16,ION:12,SLD:15' && !partialParams.has('dT') &&
+        partialParams.get('dS') === 'PS:0.01,PR:0.01' && root.querySelectorAll('.side')[1].textContent.includes('基地防御受损'),
         'Partial analysis should still import fleets while keeping unresolved notices');
     const tab = String.fromCharCode(9), newline = String.fromCharCode(10);
     for (const [source, reason] of [
@@ -682,7 +923,7 @@ async function verifyCombat() {
             '<tr><td>' + labels[4] + '</td><td>100%</td></tr></table>' +
             '<table class="battle-report_attack"><tr><td>' + labels[6] + '</td><td>1</td><td>1</td><td>8.6</td><td>11.25</td><td>0</td></tr></table>' +
             '<table class="battle-report_defense"><tr><td>' + labels[7] + '</td><td>26400</td><td>1</td><td>6.09</td><td>4.4</td><td>0</td></tr>' +
-            '<tr><td>' + labels[8] + '</td><td>10</td><td>0</td><td>7.23</td><td>4972</td><td>34</td></tr></table>';
+            '<tr><td>' + labels[8] + '</td><td>0.01</td><td>0</td><td>7.23</td><td>4972</td><td>34</td></tr></table>';
         let copied, opened;
         execute(new URL('https://borealis.astroempires.com/combat.aspx?fleet=1&attack=base'),
             { clipboard: { async writeText(text) { copied = text; } } }, { open: href => { opened = new URL(href); } });
@@ -690,14 +931,14 @@ async function verifyCombat() {
         const click = async label => { root.querySelector('button[aria-label="' + label + '"]').click(); await settle(); };
         await click('复制舰队资料');
         await click('守方 简体中文');
-        ensure(copied === '战斗机\\t26400\\n行星护盾\\t10', 'Combat Chinese copy should use initial counts');
+        ensure(copied === '战斗机\\t26400\\n行星护盾\\t0.01', 'Combat Chinese copy should use initial fractional counts');
         await click('复制舰队资料');
         await click('守方 英文');
-        ensure(copied === 'Fighters\\t26400\\nPlanetary Shield\\t10', 'Combat English copy should keep the same initial counts');
+        ensure(copied === 'Fighters\\t26400\\nPlanetary Shield\\t0.01', 'Combat English copy should keep the same initial fractional counts');
         await click('AEBits 战斗计算器');
         const params = opened.searchParams;
         const sorted = key => params.get(key).split(',').sort().join(',');
-        ensure(params.get('aS') === 'CV:1' && params.get('dS') === 'FT:26400,PS:10' && params.get('gv') === '5',
+        ensure(params.get('aS') === 'CV:1' && params.get('dS') === 'FT:26400,PS:0.01' && params.get('gv') === '5',
             'Combat calculator rosters should remain correct');
         ensure(sorted('aT') === 'ARM:25,LAS:23' && sorted('dT') === 'ARM:24,CC:9,DfC:13,ION:12,LAS:22,SLD:14',
             'Combat technology inference should remain correct in both languages');
@@ -874,7 +1115,7 @@ try {
     if (result.error) throw result.error;
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout.match(/<body[^>]*>/)?.[0] ?? '', /data-result="pass"/);
-    console.log('57 份中英文戰報 BBCode 轉換與匯入、雙語設定與使用說明及既有功能通過瀏覽器測試。');
+    console.log('基地數量與經濟讀取、57 份既有戰報、36 組指揮官語言案例、雙語設定及既有功能通過瀏覽器測試。');
 } finally {
     rmSync(directory, { recursive: true, force: true });
 }

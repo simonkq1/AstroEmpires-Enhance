@@ -23,6 +23,8 @@ export function analyzeReport(text: string) {
         importErrors: [],
     });
     const sides = { attacker: createSide(), defender: createSide() };
+    // 攻方沒有指揮中心或指揮官加成，只有兵力表時也能推算武器科技。
+    Object.assign(sides.attacker.modifiers, { CC: 0, TaC: 0, DfC: 0 });
     let side: Side | undefined;
     let inUnits = false;
     const parsed = readBbcodeRows(text);
@@ -65,6 +67,7 @@ export function analyzeReport(text: string) {
             report.observations.push(observation);
             continue;
         }
+        if (side === 'attacker') continue;
         if (!/^(?:玩家|player|舰队名称|fleet name|基地|base|初始防御|start defenses|战后防御|end defenses|指挥中心|command centers|指挥官|commander)$/.test(label)) continue;
         if (!report.hasInformation) {
             Object.assign(report.modifiers, { CC: 0, TaC: 0, DfC: 0 });

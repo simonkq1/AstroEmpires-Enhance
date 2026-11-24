@@ -3,14 +3,31 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { buildCalculatorUrl, formatFleetTsv, parseFleetUnit } from '../src/fleet.ts';
 
-test('艦船數量須為正整數，可帶千分位逗號', () => {
+test('艦船數量接受正整數與最多兩位小數，可帶千分位逗號', () => {
     assert.deepEqual(parseFleetUnit(' fighters ', ' 22,120 '), {
         name: 'fighters', english: 'Fighters', chinese: '战斗机', quantity: 22120, code: 'FT',
     });
-    for (const count of ['', '0', '-5', '1.5', '1,2', '1e3', '9007199254740992']) {
+    for (const [count, quantity] of [['337.9', 337.9], ['0.01', 0.01], ['1,000.25', 1000.25], ['1.5', 1.5], ['337.90', 337.9], ['000,001.50', 1.5]]) {
+        assert.equal(parseFleetUnit('Heavy Cruiser', count)?.quantity, quantity);
+    }
+    assert.equal(parseFleetUnit('Fighters', '9007199254740991').quantity, Number.MAX_SAFE_INTEGER);
+    for (const count of ['', '0', '0.00', '-5', '-0.01', '1.234', '0.001', '.5', '1.', '1,2', '1e3', 'NaN', 'Infinity',
+        '9007199254740992', '9,007,199,254,740,992.01', '9007199254740991.01', '90071992547409.91']) {
         assert.equal(parseFleetUnit('Fighters', count), undefined, count);
     }
     assert.equal(parseFleetUnit(' ', '500'), undefined);
+});
+
+test('小數艦船與防禦數量在雙語 TSV 及攻守方匯入保持一致', () => {
+    const units = [parseFleetUnit('重型巡洋舰', '337.9'), parseFleetUnit('Fighters', '1,000.25'),
+        parseFleetUnit('行星护盾', '0.01', true)];
+    assert.equal(formatFleetTsv(units, 'chinese'), '重型巡洋舰\t337.9\n战斗机\t1000.25\n行星护盾\t0.01');
+    assert.equal(formatFleetTsv(units, 'english'), 'Heavy Cruiser\t337.9\nFighters\t1000.25\nPlanetary Shield\t0.01');
+    for (const [side, other] of [['aS', 'dS'], ['dS', 'aS']]) {
+        const { url } = buildCalculatorUrl({ [side]: units });
+        assert.equal(url.searchParams.get(side), 'HC:337.9,FT:1000.25,PS:0.01');
+        assert.equal(url.searchParams.has(other), false);
+    }
 });
 
 test('雙語 TSV 保留數量、順序與兩欄格式', () => {

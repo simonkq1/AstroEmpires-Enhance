@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
+import packageInfo from '../package.json' with { type: 'json' };
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = join(root, 'dist');
@@ -15,6 +16,30 @@ try {
     const bundle = join(outDir, 'astroempires.user.js');
     const source = await readFile(bundle, 'utf8');
     const licenses = await readFile(join(outDir, 'licenses.md'), 'utf8');
+    const projectLicense = await readFile(join(root, 'LICENSE'), 'utf8');
+    const projectNotice = [
+        'Project license: ' + packageInfo.license,
+        'Astro Empires Enhance',
+        'Copyright (C) 2026 simonkq1',
+        `Source code (version ${packageInfo.version}): https://github.com/simonkq1/AstroEmpires-Enhance`,
+        'Original code and documentation are licensed under GPL-3.0-or-later.',
+        'Third-party material retains its own copyright and license notices.',
+        '',
+        'This program is free software: you can redistribute it and/or modify',
+        'it under the terms of the GNU General Public License as published by',
+        'the Free Software Foundation, either version 3 of the License, or',
+        '(at your option) any later version.',
+        '',
+        'This program is distributed in the hope that it will be useful,',
+        'but WITHOUT ANY WARRANTY; without even the implied warranty of',
+        'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the',
+        'GNU General Public License for more details.',
+        '',
+        'You should have received a copy of the GNU General Public License',
+        'along with this program. If not, see <https://www.gnu.org/licenses/>.',
+        '',
+        projectLicense.trimEnd(),
+    ].join('\n').split(/\r?\n/).map(line => line ? `// ${line}` : '//').join('\n');
     const notices = [
         'PrimeVue source: https://github.com/primefaces/primevue/tree/4.5.5',
         'PrimeVue is bundled so the userscript can redirect its style loader into the toolbar Shadow Root.',
@@ -27,7 +52,7 @@ try {
         notices.push(`## ${info.name} - ${info.version} (${info.license})\n${primeuixSource}/${name}\n\n${license.trimEnd()}`);
     }
     const licenseComment = notices.join('\n\n').split(/\r?\n/).map(line => line ? `// ${line}` : '//').join('\n');
-    const complete = `${source.trimEnd()}\n\n// Third-party licenses\n${licenseComment}\n`;
+    const complete = `${source.trimEnd()}\n\n${projectNotice}\n\n// Third-party licenses\n${licenseComment}\n`;
 
     if (check) {
         const current = await readFile(join(dist, 'astroempires.user.js')).catch(error => {

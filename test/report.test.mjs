@@ -1,8 +1,24 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fixture from './fixtures/report.json' with { type: 'json' };
+import baseFixture from './fixtures/combat-base.json' with { type: 'json' };
 import { analyzeReport, buildReportCalculatorUrl } from '../src/report.ts';
 import { t } from '../src/i18n.ts';
+
+test('中文基地攻擊附件識別建築指揮官及捨入邊界，匯入完整科技與原始兵力', () => {
+    const result = analyzeReport(baseFixture.bbcode);
+    assert.deepEqual(result.attacker.levels, { LAS: 23, ARM: 25 });
+    assert.deepEqual(result.attacker.unresolved, ['SLD']);
+    assert.deepEqual(result.defender.levels, { LAS: 23, ARM: 24, MIS: 22, ION: 12, SLD: 15, PHO: 10, DIS: 5, CC: 3 });
+    assert.deepEqual(result.defender.unresolved, []);
+    assert.deepEqual(result.defender.warnings, []);
+    const { url } = buildReportCalculatorUrl(result);
+    assert.equal(url.searchParams.get('aS'), 'SS:1');
+    assert.equal(url.searchParams.get('dS'), 'FT:2136,BO:300,CV:11,SS:1,FC:4,DN:1,IT:15,DT:15,PS:5,PR:10');
+    assert.equal(url.searchParams.get('aT'), 'LAS:23,ARM:25');
+    assert.equal(url.searchParams.get('dT'), 'LAS:23,ARM:24,MIS:22,ION:12,SLD:15,PHO:10,DIS:5,CC:3');
+    assert.equal(url.searchParams.get('gv'), '5');
+});
 
 test('完整戰報核對攻方科技，受損防禦保留小數及全滅單位並提示限制', () => {
     const result = analyzeReport(fixture.information + fixture.tables + '\n攻击方征服了此基地');
@@ -17,13 +33,23 @@ test('完整戰報核對攻方科技，受損防禦保留小數及全滅單位�
     }
 });
 
-test('僅有兵力表格時將加成標為未知，仍能確認裝甲與護盾', () => {
+test('僅有兵力表格時攻方不需基地加成，守方仍保留未知加成', () => {
     const result = analyzeReport(fixture.tables);
-    assert.deepEqual(result.attacker.levels, { ARM: 24, SLD: 15 });
-    for (const code of ['LAS', 'PLA', 'ION']) assert.equal(result.attacker.reasons[code].key, 'missingAttackBonus');
+    assert.deepEqual(result.attacker.levels, { LAS: 23, ARM: 24, PLA: 16, ION: 12, SLD: 15 });
+    assert.deepEqual(result.attacker.unresolved, []);
     assert.deepEqual(result.defender.levels, {});
     assert.equal(result.defender.count, 2);
     assert.ok(result.defender.unresolved.includes('DfC'));
+});
+
+test('攻方資訊中的指揮中心與指揮官不影響科技，基地加成僅屬守方', () => {
+    for (const [side, cc, commander] of [
+        ['攻击舰队', '指挥中心', '指挥官'], ['Attack Force', 'Command Centers', 'Commander'],
+    ]) {
+        const result = analyzeReport(`[b]${side}[/b]\n${cc}：99\n${commander}：Name (Tactical 14)\n` + fixture.tables);
+        assert.deepEqual(result.attacker.levels, { LAS: 23, ARM: 24, PLA: 16, ION: 12, SLD: 15 });
+        assert.deepEqual(result.attacker.unresolved, []);
+    }
 });
 
 test('讀取 BBCode 連結、粗體、空白字元、千分位及英文欄位', () => {
@@ -149,10 +175,10 @@ test('完整 BBCode 匯入雙方初始兵力、小數防禦與已確認科技', 
 test('僅有兵力表格時仍可匯入雙方，未知科技欄位省略', () => {
     const report = analyzeReport(fixture.tables);
     const { url } = buildReportCalculatorUrl(report);
-    assert.equal(url.searchParams.get('aT'), 'ARM:24,SLD:15');
+    assert.equal(url.searchParams.get('aT'), 'LAS:23,ARM:24,PLA:16,ION:12,SLD:15');
     assert.equal(url.searchParams.has('dT'), false);
     assert.equal(url.searchParams.get('dS'), 'PS:0.01,PR:0.01');
-    assert.ok(report.attacker.unresolved.includes('ION'));
+    assert.deepEqual(report.attacker.unresolved, []);
 });
 
 test('單方利維坦使用 LE，戰後全滅仍使用初始數量', () => {

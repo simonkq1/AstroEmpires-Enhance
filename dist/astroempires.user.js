@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Astro Empires Enhance
 // @namespace    astroempires-tools
-// @version      0.9.0
+// @version      0.10.0
 // @author       simonkq1
-// @description  在 Borealis 提供戰報 BBCode 轉換與分析、艦隊資料複製、AEBits 匯入與抵達時間預測
+// @description  在 Borealis 提供戰報 BBCode 分析、艦隊複製、AEBits 匯入、抵達時間與基地數量推算
+// @license      GPL-3.0-or-later
 // @downloadURL  https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
 // @updateURL    https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
 // @match        https://borealis.astroempires.com/*
@@ -25,13 +26,32 @@
 		menu: "Features",
 		openMenu: "Open feature menu",
 		closeMenu: "Close feature menu",
+		baseCountLabel: "Estimated owner's base count",
+		baseNpc: "NPC base: player base count does not apply.",
+		baseDrekonsImport: "Drekons: the AEBits base count is set to 8. Check the other pillage settings manually.",
+		baseRecentlyPillaged: "Occupied or pillaged within 100 hours: the pillage value does not reveal the base count.",
+		baseMissingPillage: "The pillage value is unavailable.",
+		baseCountMismatch: "The economy and pillage value do not identify a positive integer base count.",
+		baseLevelUnknown: "The player-level adjustment cannot be confirmed.",
+		baseLoading: "Reading target base income and economy…",
+		baseIdUnavailable: "Target base ID is unavailable. Income, economy and base count were omitted.",
+		baseFetchFailed: "Could not read the target base. Income, economy and base count were omitted.",
+		baseManualCount: "Income and economy were imported; base count was omitted. {reason} Check the base count and other pillage settings manually in AEBits.",
+		baseTools: "Base economy and base count",
+		helpBaseEstimate: "On base.aspx, look below the pillage value for the estimated number of bases owned by the player. NPC bases, occupations, recent pillages and unconfirmed data show an explanation instead of a count.",
+		helpBaseFetch: "When attacking a base, the combat page reads the target base once before enabling AEBits. X/Y means income X and economy Y; a single Y supplies both. It imports these values and a confirmed base count. Drekons uses a fixed count of 8; United Colonies omits the count. A failed read omits all three. Check hours since the last pillage and any unknown base count manually in AEBits.",
 		help: "Help",
 		helpTitle: "Features and usage",
+		licenseTitle: "License",
+		licenseTerms: "Full GPLv3 terms",
+		sourceCode: "Source code",
+		licenseSummary: "Original code and documentation are licensed under GPL-3.0-or-later. Use, modification, commercial use and redistribution are permitted under its terms. Distributed modifications must remain under the GPL and provide corresponding source code. This software comes WITHOUT ANY WARRANTY.",
+		thirdPartyRights: "Third-party libraries and fonts retain their own licenses. Game content and report material remain subject to their respective rights.",
 		helpIntro: "These features are available on Borealis. Open the bottom-right arrow to access BBCode analysis, Settings and Help. Close this window or press Esc to return to the menu.",
 		helpReportPages: "On messages.aspx, board.aspx and combat.aspx, find a battle report and click “Copy battle report BBCode” below it. Each button copies only its own report, keeping the original language.",
 		helpReportCopy: "If clipboard access fails, select and copy the text in the fallback box manually. Use this BBCode for analysis instead of copying the game table directly.",
 		helpAnalyzePaste: "Open “Analyze BBCode” from the feature menu, paste the copied BBCode, then click “Analyze”. Simplified Chinese and English reports are supported. Keep the side headings and all six columns of each [code] unit table.",
-		helpAnalyzeResults: "Results show confirmed technology levels for each side and explain fields that need confirmation. A complete report helps identify bonuses. Editing the input clears the old result; click “Analyze” again. Closing the panel keeps your input and results until you leave the page.",
+		helpAnalyzeResults: "Results show confirmed technology levels for each side and explain fields that need confirmation. Command Center and commander bonuses apply only to the defender; a complete report helps identify them. Editing the input clears the old result; click “Analyze” again. Closing the panel keeps your input and results until you leave the page.",
 		helpImport: "After a successful analysis, click “Import into AEBits Battle Calculator”. A new tab opens with initial forces, confirmed technologies and explicit bonuses. Fractional forces and units destroyed in battle are included. Only the available side is imported for a one-sided report.",
 		helpImportErrors: "Check unresolved technologies manually in AEBits. Unknown units, invalid initial quantities or incomplete unit rows block import; correct the reported issue and analyze again. The calculator language follows your script language.",
 		helpFleetCombat: "Fleet details and combat pages",
@@ -116,13 +136,32 @@
 		menu: "功能菜单",
 		openMenu: "打开功能菜单",
 		closeMenu: "收起功能菜单",
+		baseCountLabel: "预计所有者基地数量",
+		baseNpc: "NPC 基地，不适用玩家基地数量。",
+		baseDrekonsImport: "Drekons / 不明生物的 AEBits 基地数量固定设为 8，其他掠夺设置请手动确认。",
+		baseRecentlyPillaged: "基地被占领或最近 100 小时内被掠夺，无法从掠夺价值推算基地数量。",
+		baseMissingPillage: "无法取得掠夺价值。",
+		baseCountMismatch: "经济与掠夺价值无法对应正整数基地数量。",
+		baseLevelUnknown: "无法确认玩家等级修正。",
+		baseLoading: "正在读取目标基地收入与经济…",
+		baseIdUnavailable: "无法取得目标基地编号，未导入收入、经济与基地数量。",
+		baseFetchFailed: "无法读取目标基地，未导入收入、经济与基地数量。",
+		baseManualCount: "已导入收入与经济，未导入基地数量。{reason}请在 AEBits 手动确认基地数量及其他掠夺设置。",
+		baseTools: "基地经济与基地数量",
+		helpBaseEstimate: "在 base.aspx 的掠夺价值下方查看预计所有者基地数量。NPC 基地、占领中、近期掠夺或资料无法确认时，会显示原因。",
+		helpBaseFetch: "攻击基地的战斗页会先读取一次目标基地，再启用 AEBits。X/Y 表示收入 X、经济 Y，单一 Y 则两项均为 Y；导入这两项及可确认的基地数量。Drekons 固定为 8，联合殖民地不导入数量。读取失败时三项都省略。上次掠夺时间及未知基地数量请在 AEBits 手动确认。",
 		help: "说明",
 		helpTitle: "功能与使用说明",
+		licenseTitle: "许可证",
+		licenseTerms: "GPLv3 完整条款",
+		sourceCode: "源代码",
+		licenseSummary: "原创代码与文档采用 GPL-3.0-or-later，允许依条款使用、修改、商用与再分发。分发修改版时须维持 GPL 授权并提供对应源代码。本软件不提供任何担保。",
+		thirdPartyRights: "第三方库与字体保留各自许可证。游戏内容及战报资料的权利归相应权利人所有。",
 		helpIntro: "以下功能适用于 Borealis。点击右下角箭头，可打开分析 BBCode、设置和说明。关闭本窗口或按 Esc 可返回功能菜单。",
 		helpReportPages: "在消息页 messages.aspx、公会面板 board.aspx 或战斗页 combat.aspx，找到战报并点击下方的“复制战报 BBCode”。每个按钮只复制对应的战报，保留原文语言。",
 		helpReportCopy: "如果无法访问剪贴板，请选中备用文本框中的内容并手动复制。分析时请使用这份 BBCode，避免直接复制游戏表格造成格式缺失。",
 		helpAnalyzePaste: "从功能菜单打开“分析 BBCode”，粘贴复制的内容后点击“分析”。支持简体中文和英文战报。请保留攻守方标题，以及 [code] 兵力表格的全部六栏。",
-		helpAnalyzeResults: "结果分别列出攻守方已确认的科技等级，以及待确认字段的原因。完整战报有助于识别加成。修改输入后会清除旧结果，请再次点击“分析”。关闭面板会保留输入和结果，直到离开页面。",
+		helpAnalyzeResults: "结果分别列出攻守方已确认的科技等级，以及待确认字段的原因。指挥中心和指挥官加成仅适用于守方，完整战报有助于识别这些加成。修改输入后会清除旧结果，请再次点击“分析”。关闭面板会保留输入和结果，直到离开页面。",
 		helpImport: "分析成功后，点击“导入 AEBits 战斗模拟器”，即可在新标签页带入初始兵力、已确认科技与明列加成。小数兵力及战后全灭单位也会保留。仅有一方资料时只导入该方。",
 		helpImportErrors: "请在 AEBits 手动确认尚未确定的科技。遇到未识别单位、初始数量无效或兵力列不完整时，会停止导入；请按提示修正后重新分析。模拟器语言跟随脚本语言设置。",
 		helpFleetCombat: "舰队详情与战斗页",
@@ -469,7 +508,7 @@
 			const scaledBase = base * bonus;
 			const level = Math.round((displayed * 1e4 / scaledBase - 1) * 20);
 			const scaledResult = scaledBase * (100 + 5 * level);
-			const matches = level >= 0 && Number.isSafeInteger(scaledResult) && Math.round(scaledResult / 1e4) === Math.round(displayed * 100);
+			const matches = level >= 0 && Number.isSafeInteger(scaledResult) && Math.abs(scaledResult - Math.round(displayed * 100) * 1e4) <= 5e3;
 			candidates.set(key, matches && (!candidates.has(key) || candidates.get(key) === level) ? level : null);
 			if (candidates.get(key) === null) reasons[key] = msg("conflictingValues");
 		}
@@ -512,7 +551,12 @@
 			fullDefenses: false
 		};
 		const sides = {
-			aT: { ...unknown },
+			aT: {
+				...unknown,
+				CC: 0,
+				TaC: 0,
+				DfC: 0
+			},
 			dT: { ...unknown }
 		};
 		let side;
@@ -527,7 +571,7 @@
 					DfC: 0
 				});
 			}
-			if (!side || !valueCell) continue;
+			if (!side || side === sides.aT || !valueCell) continue;
 			const value = valueCell.textContent.trim();
 			switch (label) {
 				case "command centers":
@@ -561,7 +605,7 @@
 				DfC: 0,
 				TaC: level
 			};
-			if (/^(?:construction|research|production|logistics|建造精通|研究精通|生产精通|后勤精通)$/.test(kind)) return {
+			if (/^(?:construction|research|production|logistics|建筑精通|建造精通|科研精通|研究精通|生产精通|后勤精通)$/.test(kind)) return {
 				DfC: 0,
 				TaC: 0
 			};
@@ -739,9 +783,10 @@
 	function parseFleetUnit(nameText, quantityText, includeDefenses = false) {
 		const name = nameText.trim();
 		const count = quantityText.trim();
-		if (!name || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(count)) return;
-		const quantity = Number(count.replaceAll(",", ""));
-		if (!Number.isSafeInteger(quantity) || quantity <= 0) return;
+		if (!name || !/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(count)) return;
+		const normalizedCount = count.replaceAll(",", "").replace(/^0+(?=\d)/, "").replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+		const quantity = Number(normalizedCount);
+		if (!Number.isFinite(quantity) || quantity > Number.MAX_SAFE_INTEGER || quantity <= 0 || String(quantity) !== normalizedCount) return;
 		return {
 			...identifyFleetUnit(name, includeDefenses),
 			quantity
@@ -761,7 +806,7 @@
 	function formatFleetTsv(units, language) {
 		return units.map((unit) => `${unit[language]}\t${unit.quantity}`).join("\n");
 	}
-	function buildCalculatorUrl(rosters, technologies, locale = "zh-CN") {
+	function buildCalculatorUrl(rosters, technologies, locale = "zh-CN", pillage) {
 		const unknownNames = Object.values(rosters).flatMap((units) => units.filter((unit) => !unit.code).map((unit) => unit.name));
 		if (unknownNames.length) return { unknownNames };
 		const url = new URL(`https://aebits.win/${locale === "en" ? "en" : "zh"}/aeBattleCalc`);
@@ -772,6 +817,12 @@
 		for (const side of ["aT", "dT"]) {
 			const fields = Object.entries(technologies?.[side] ?? {});
 			if (fields.length) url.searchParams.set(side, fields.map(([field, level]) => `${field}:${level}`).join(","));
+		}
+		if (pillage) {
+			const values = [`economy:${pillage.economy}`];
+			if (pillage.income !== void 0) values.push(`income:${pillage.income}`);
+			if (pillage.defenderBase !== void 0) values.push(`defenderBase:${pillage.defenderBase}`);
+			url.searchParams.set("p", values.join(","));
 		}
 		url.searchParams.set("gv", "5");
 		return { url };
@@ -4990,13 +5041,13 @@ dd {
 		setup(app, mergeKeys(defaultOptions, options));
 	} };
 	var fleet_toolbar_default = ":host {\n    all: initial !important;\n    display: block !important;\n    margin-block-start: 8px !important;\n}\n\n.toolbar {\n    font: 14px/1.45 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n    color-scheme: dark;\n}\n\n.actions,\n.options {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: start;\n    gap: 6px;\n}\n\n.options {\n    margin-block-start: 6px;\n}\n\n[hidden] {\n    display: none !important;\n}\n\n.action {\n    box-sizing: border-box;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    color: #e7f1f6;\n    padding: 5px 10px;\n    font: inherit;\n    cursor: pointer;\n}\n\n.action:hover,\n.action[aria-expanded='true'] {\n    background: #244657;\n}\n\n.action:focus-visible,\n.fallback:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.status:not(:empty) {\n    margin-block-start: 6px;\n    overflow-wrap: anywhere;\n}\n\n.fallback {\n    box-sizing: border-box;\n    display: block;\n    width: 100%;\n    margin-block-start: 6px;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #101e27;\n    color: #e7f1f6;\n    padding: 6px;\n    font: 13px/1.4 ui-monospace, monospace;\n}\n";
-	var panelId$1 = "astro-empires-fleet-actions";
+	var panelId$2 = "astro-empires-fleet-actions";
 	var languages = [["chinese", "chinese"], ["english", "english"]];
-	function mountFleetActions(table, sources, calculators, readTechnologies) {
+	function mountFleetActions(table, sources, calculators, readTechnologies, baseImport) {
 		const availableSources = sources.filter(({ units }) => units.length);
 		if (!availableSources.length) return;
 		const host = document.createElement("div");
-		host.id = panelId$1;
+		host.id = panelId$2;
 		const shadow = host.attachShadow({ mode: "open" });
 		const style = document.createElement("style");
 		style.textContent = fleet_toolbar_default;
@@ -5028,8 +5079,8 @@ dd {
 				});
 			}
 			function menu(id, label, choices) {
-				const triggerId = `${panelId$1}-${id}-trigger`;
-				const optionsId = `${panelId$1}-${id}-options`;
+				const triggerId = `${panelId$2}-${id}-trigger`;
+				const optionsId = `${panelId$2}-${id}-options`;
 				const open = expanded.value === id;
 				return (0, vue.h)("div", [actionButton(label, () => {
 					expanded.value = open ? null : id;
@@ -5067,7 +5118,8 @@ dd {
 			function openCalculator(rosters) {
 				expanded.value = null;
 				const combat = readTechnologies?.();
-				const result = buildCalculatorUrl(rosters, combat?.technologies, language.value);
+				if (baseImport?.loading.value) return;
+				const result = buildCalculatorUrl(rosters, combat?.technologies, language.value, baseImport?.pillage.value);
 				if ("unknownNames" in result) {
 					status.value = msg("unknownImport", { names: result.unknownNames });
 					return;
@@ -5076,11 +5128,15 @@ dd {
 				window.open(result.url.href, "_blank", "noopener,noreferrer");
 			}
 			return () => [
-				(0, vue.h)("div", { class: "actions" }, [menu("copy", "copyFleet", copyChoices), calculatorChoices.length === 1 ? actionButton(...calculatorChoices[0]) : menu("aebits", "calculator", calculatorChoices)]),
+				(0, vue.h)("div", { class: "actions" }, [menu("copy", "copyFleet", copyChoices), calculatorChoices.length === 1 ? actionButton(calculatorChoices[0][0], calculatorChoices[0][1], { disabled: baseImport?.loading.value ?? false }) : menu("aebits", "calculator", calculatorChoices)]),
 				(0, vue.h)("div", {
 					class: "status",
 					role: "status"
 				}, t(status.value)),
+				baseImport ? (0, vue.h)("div", {
+					class: "status",
+					role: "status"
+				}, baseImport.loading.value ? t("baseLoading") : t(baseImport.notice.value)) : null,
 				(0, vue.h)("textarea", {
 					ref: textarea,
 					class: "fallback",
@@ -5114,6 +5170,11 @@ dd {
 			attacker: createSide(),
 			defender: createSide()
 		};
+		Object.assign(sides.attacker.modifiers, {
+			CC: 0,
+			TaC: 0,
+			DfC: 0
+		});
 		let side;
 		let inUnits = false;
 		const parsed = readBbcodeRows(text);
@@ -5164,6 +5225,7 @@ dd {
 				report.observations.push(observation);
 				continue;
 			}
+			if (side === "attacker") continue;
 			if (!/^(?:玩家|player|舰队名称|fleet name|基地|base|初始防御|start defenses|战后防御|end defenses|指挥中心|command centers|指挥官|commander)$/.test(label)) continue;
 			if (!report.hasInformation) {
 				Object.assign(report.modifiers, {
@@ -5251,7 +5313,7 @@ dd {
 	function uniqueMessages(messages) {
 		return [...new Map(messages.map((message) => [JSON.stringify(message), message])).values()];
 	}
-	var report_analyzer_default = ":host {\n    all: initial !important;\n    position: fixed !important;\n    inset: auto 16px 16px auto !important;\n    z-index: 2147483647 !important;\n    display: block !important;\n    width: 48px !important;\n    height: 48px !important;\n    color-scheme: dark;\n}\n\n* {\n    box-sizing: border-box;\n}\n\ndiv {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n}\n\n[hidden] {\n    display: none !important;\n}\n\nbutton,\ntextarea,\nselect {\n    font: inherit;\n    color: #e7f1f6;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    padding: 6px 12px;\n}\n\nbutton {\n    cursor: pointer;\n}\n\nbutton:hover {\n    background: #244657;\n}\n\nbutton:focus-visible,\ntextarea:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\nselect:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.settings-dialog,\n.help-dialog {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    color-scheme: dark;\n    background: #101e27;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 20px;\n    width: min(420px, calc(100vw - 32px));\n    max-height: calc(100dvh - 32px);\n    margin: auto;\n    overflow: auto;\n}\n\n.settings-dialog::backdrop,\n.help-dialog::backdrop {\n    background: #0009;\n}\n\n.help-dialog {\n    width: min(640px, calc(100vw - 32px));\n    overflow-wrap: anywhere;\n}\n\n.help-dialog section {\n    margin: 20px 0;\n}\n\n.help-dialog h3 {\n    color: #91daff;\n    font-size: 16px;\n}\n\n.settings-dialog fieldset {\n    border: 1px solid #547488;\n    margin: 12px 0;\n    padding: 12px;\n}\n\n.settings-dialog label {\n    display: block;\n    margin-bottom: 6px;\n}\n\n.settings-dialog select {\n    width: 100%;\n}\n\n.settings-actions {\n    display: flex;\n    flex-wrap: wrap;\n    justify-content: flex-end;\n    gap: 8px;\n}\n\n.trigger {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    width: 48px;\n    height: 48px;\n    border-radius: 50%;\n    font-size: 20px;\n}\n\n.material-icons {\n    font-family: 'Astro Empires Material Icons';\n    font-size: 24px;\n    font-weight: 400;\n    font-style: normal;\n    line-height: 1;\n    letter-spacing: normal;\n    text-transform: none;\n    white-space: nowrap;\n    direction: ltr;\n    font-feature-settings: 'liga';\n}\n\n.feature-list {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    width: max-content;\n    max-width: calc(100vw - 32px);\n}\n\n.panel {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    width: min(440px, calc(100vw - 32px));\n    max-height: calc(100dvh - 92px);\n    overflow: auto;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 16px;\n    background: #101e27;\n    box-shadow: 0 6px 24px #0008;\n    overflow-wrap: anywhere;\n}\n\nheader {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    gap: 8px;\n    margin-bottom: 12px;\n}\n\nh2,\nh3,\nh4,\np {\n    margin: 0 0 8px;\n}\n\nh2 {\n    font-size: 18px;\n}\n\nh3,\nh4 {\n    font-size: 14px;\n}\n\ntextarea {\n    display: block;\n    width: 100%;\n    resize: vertical;\n    min-height: 80px;\n    margin: 4px 0 8px;\n    background: #07131c;\n}\n\n.results,\n.side {\n    margin-top: 16px;\n}\n\ndl {\n    display: grid;\n    grid-template-columns: 1fr max-content;\n    gap: 4px 12px;\n    margin: 0 0 12px;\n}\n\ndd {\n    margin: 0;\n    font-variant-numeric: tabular-nums;\n}\n\nul {\n    margin: 0 0 8px;\n    padding-left: 20px;\n}\n\n.note {\n    color: #afc5d2;\n}\n";
+	var report_analyzer_default = ":host {\n    all: initial !important;\n    position: fixed !important;\n    inset: auto 16px 16px auto !important;\n    z-index: 2147483647 !important;\n    display: block !important;\n    width: 48px !important;\n    height: 48px !important;\n    color-scheme: dark;\n}\n\n* {\n    box-sizing: border-box;\n}\n\ndiv {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    direction: ltr;\n    text-align: start;\n}\n\n[hidden] {\n    display: none !important;\n}\n\nbutton,\ntextarea,\nselect {\n    font: inherit;\n    color: #e7f1f6;\n    border: 1px solid #547488;\n    border-radius: 4px;\n    background: #172b37;\n    padding: 6px 12px;\n}\n\nbutton {\n    cursor: pointer;\n}\n\nbutton:hover {\n    background: #244657;\n}\n\nbutton:focus-visible,\ntextarea:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\nselect:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.help-dialog a:focus-visible {\n    outline: 2px solid #91daff;\n    outline-offset: 2px;\n}\n\n.settings-dialog,\n.help-dialog {\n    font: 14px/1.5 system-ui, sans-serif;\n    color: #e7f1f6;\n    color-scheme: dark;\n    background: #101e27;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 20px;\n    width: min(420px, calc(100vw - 32px));\n    max-height: calc(100dvh - 32px);\n    margin: auto;\n    overflow: auto;\n}\n\n.settings-dialog::backdrop,\n.help-dialog::backdrop {\n    background: #0009;\n}\n\n.help-dialog {\n    width: min(640px, calc(100vw - 32px));\n    overflow-wrap: anywhere;\n}\n\n.help-dialog section,\n.help-dialog footer {\n    margin: 20px 0;\n}\n\n.help-dialog h3 {\n    color: #91daff;\n    font-size: 16px;\n}\n\n.help-dialog a {\n    color: #91daff;\n}\n\n.settings-dialog fieldset {\n    border: 1px solid #547488;\n    margin: 12px 0;\n    padding: 12px;\n}\n\n.settings-dialog label {\n    display: block;\n    margin-bottom: 6px;\n}\n\n.settings-dialog select {\n    width: 100%;\n}\n\n.settings-actions {\n    display: flex;\n    flex-wrap: wrap;\n    justify-content: flex-end;\n    gap: 8px;\n}\n\n.trigger {\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    width: 48px;\n    height: 48px;\n    border-radius: 50%;\n    font-size: 20px;\n}\n\n.material-icons {\n    font-family: 'Astro Empires Material Icons';\n    font-size: 24px;\n    font-weight: 400;\n    font-style: normal;\n    line-height: 1;\n    letter-spacing: normal;\n    text-transform: none;\n    white-space: nowrap;\n    direction: ltr;\n    font-feature-settings: 'liga';\n}\n\n.feature-list {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    width: max-content;\n    max-width: calc(100vw - 32px);\n}\n\n.panel {\n    position: absolute;\n    bottom: 60px;\n    right: 0;\n    width: min(440px, calc(100vw - 32px));\n    max-height: calc(100dvh - 92px);\n    overflow: auto;\n    border: 1px solid #547488;\n    border-radius: 8px;\n    padding: 16px;\n    background: #101e27;\n    box-shadow: 0 6px 24px #0008;\n    overflow-wrap: anywhere;\n}\n\nheader {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    gap: 8px;\n    margin-bottom: 12px;\n}\n\nh2,\nh3,\nh4,\np {\n    margin: 0 0 8px;\n}\n\nh2 {\n    font-size: 18px;\n}\n\nh3,\nh4 {\n    font-size: 14px;\n}\n\ntextarea {\n    display: block;\n    width: 100%;\n    resize: vertical;\n    min-height: 80px;\n    margin: 4px 0 8px;\n    background: #07131c;\n}\n\n.results,\n.side {\n    margin-top: 16px;\n}\n\ndl {\n    display: grid;\n    grid-template-columns: 1fr max-content;\n    gap: 4px 12px;\n    margin: 0 0 12px;\n}\n\ndd {\n    margin: 0;\n    font-variant-numeric: tabular-nums;\n}\n\nul {\n    margin: 0 0 8px;\n    padding-left: 20px;\n}\n\n.note {\n    color: #afc5d2;\n}\n";
 	var settingsKey = "astro-empires-settings";
 	var needsLanguageChoice = (0, vue.ref)(false);
 	function readSettings(storage) {
@@ -5371,6 +5433,10 @@ dd {
 			text: ["helpFleet", "helpCombat"]
 		},
 		{
+			title: "baseTools",
+			text: ["helpBaseEstimate", "helpBaseFetch"]
+		},
+		{
 			title: "estimatedArrival",
 			text: ["helpArrival", "helpClocks"]
 		},
@@ -5422,6 +5488,25 @@ dd {
 				}, t("helpTitle")),
 				(0, vue.h)("p", t("helpIntro")),
 				...sections.map((section) => (0, vue.h)("section", [(0, vue.h)("h3", t(section.title)), ...section.text.map((key) => (0, vue.h)("p", t(key)))])),
+				(0, vue.h)("footer", { class: "license-notice" }, [
+					(0, vue.h)("h3", t("licenseTitle")),
+					(0, vue.h)("p", "Copyright (C) 2026 simonkq1"),
+					(0, vue.h)("p", t("licenseSummary")),
+					(0, vue.h)("p", t("thirdPartyRights")),
+					(0, vue.h)("p", [
+						(0, vue.h)("a", {
+							href: "https://www.gnu.org/licenses/gpl-3.0.html",
+							target: "_blank",
+							rel: "noopener noreferrer"
+						}, t("licenseTerms")),
+						" · ",
+						(0, vue.h)("a", {
+							href: "https://github.com/simonkq1/AstroEmpires-Enhance",
+							target: "_blank",
+							rel: "noopener noreferrer"
+						}, t("sourceCode"))
+					])
+				]),
 				(0, vue.h)("div", { class: "settings-actions" }, [(0, vue.h)("button", {
 					type: "button",
 					onClick: close
@@ -5429,12 +5514,12 @@ dd {
 			]);
 		}
 	});
-	var panelId = "astro-empires-report-analyzer";
+	var panelId$1 = "astro-empires-report-analyzer";
 	var materialIconsUrl = "https://fonts.gstatic.com/s/materialicons/v145/flUhRq6tzZclQEJ-Vdg-IuiaDsNZ.ttf";
 	function mountReportAnalyzer() {
-		if (document.getElementById(panelId)) return;
+		if (document.getElementById(panelId$1)) return;
 		const host = document.createElement("div");
-		host.id = panelId;
+		host.id = panelId$1;
 		const root = host.attachShadow({ mode: "open" });
 		const style = document.createElement("style");
 		style.textContent = report_analyzer_default;
@@ -5522,7 +5607,7 @@ dd {
 				}
 			}, [
 				(0, vue.h)("div", {
-					id: `${panelId}-menu`,
+					id: `${panelId$1}-menu`,
 					class: "feature-list",
 					hidden: view.value !== "menu",
 					role: "group",
@@ -5554,21 +5639,21 @@ dd {
 					}, t("help"))
 				]),
 				(0, vue.h)("section", {
-					id: `${panelId}-panel`,
+					id: `${panelId$1}-panel`,
 					class: "panel",
 					hidden: view.value !== "analysis",
 					role: "dialog",
-					"aria-labelledby": `${panelId}-title`
+					"aria-labelledby": `${panelId$1}-title`
 				}, [
-					(0, vue.h)("header", [(0, vue.h)("h2", { id: `${panelId}-title` }, t("analysisTitle")), (0, vue.h)("button", {
+					(0, vue.h)("header", [(0, vue.h)("h2", { id: `${panelId$1}-title` }, t("analysisTitle")), (0, vue.h)("button", {
 						type: "button",
 						"aria-label": t("closeAnalysis"),
 						onClick: () => show("menu")
 					}, t("close"))]),
-					(0, vue.h)("label", { for: `${panelId}-input` }, t("reportInput")),
+					(0, vue.h)("label", { for: `${panelId$1}-input` }, t("reportInput")),
 					(0, vue.h)("textarea", {
 						ref: input,
-						id: `${panelId}-input`,
+						id: `${panelId$1}-input`,
 						rows: 8,
 						spellcheck: false,
 						value: text.value,
@@ -5602,7 +5687,7 @@ dd {
 					class: "trigger",
 					"aria-label": t(view.value ? "closeMenu" : "openMenu"),
 					"aria-expanded": String(view.value !== null),
-					"aria-controls": `${panelId}-menu ${panelId}-panel`,
+					"aria-controls": `${panelId$1}-menu ${panelId$1}-panel`,
 					onClick: () => show(view.value ? null : "menu")
 				}, [(0, vue.h)("span", {
 					class: iconsReady.value ? "material-icons" : "icon-fallback",
@@ -5745,6 +5830,135 @@ dd {
 			subtree: true
 		});
 	}
+	function inferBaseCount(base) {
+		const unknown = (key) => ({
+			count: null,
+			reason: msg(key)
+		});
+		if (base.npc) return unknown("baseNpc");
+		if (base.occupied || base.hoursSincePillage !== null && base.hoursSincePillage < 100) return unknown("baseRecentlyPillaged");
+		if (base.pillage === null) return unknown("baseMissingPillage");
+		const minimumIncome = Math.ceil(base.economy * 7 / 10);
+		if (base.economy <= 0 || base.income < minimumIncome || base.income > base.economy) return unknown("baseCountMismatch");
+		const bonus = 5 * (base.income - minimumIncome) ** 2;
+		if (bonus && (base.ownerLevelPercent === null || base.ownerLevelPercent < 66)) return unknown("baseLevelUnknown");
+		const count = (base.pillage - bonus) / (2 * base.economy);
+		if (!Number.isSafeInteger(bonus) || !Number.isSafeInteger(count) || count < 1) return unknown("baseCountMismatch");
+		return {
+			count,
+			reason: null
+		};
+	}
+	function integer(value) {
+		if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(value)) return null;
+		const result = Number(value.replaceAll(",", ""));
+		return Number.isSafeInteger(result) ? result : null;
+	}
+	function findPillageElement(doc) {
+		return [...doc.querySelectorAll("center")].find((element) => /^(?:掠夺价值\s*[\d,]+\s*信用点[。.]?|Pillage value\s+[\d,]+\s+credits\.?)$/i.test(element.textContent.trim())) ?? null;
+	}
+	function readBaseDetails(doc) {
+		const credits = doc.querySelector(".mini-infobox.infoicon_credits")?.textContent.replace(/\s/g, "").split("/");
+		if (!credits || credits.length > 2) return null;
+		const income = integer(credits[0]);
+		const economy = integer(credits[1] ?? credits[0]);
+		if (economy === null || economy <= 0 || income === null) return null;
+		const rows = [...doc.querySelectorAll("#base_processing-capacities tr")];
+		const owner = rows.find((row) => /^(?:所有者|Owner)\s*[:：]/i.test(row.textContent.trim()))?.querySelector("a");
+		if (!owner) return null;
+		const ownerName = owner.textContent.trim().toLowerCase();
+		const npcKind = /^(?:不明生物|drekons)$/.test(ownerName) ? "drekons" : /^(?:联合殖民地|united colonies)$/.test(ownerName) ? "unitedColonies" : null;
+		const npc = npcKind !== null || /(?:游戏\s*NPC|Game\s+NPC)/i.test(owner.title);
+		const occupied = rows.some((row) => /^(?:占领者|Occupier)\s*[:：]/i.test(row.textContent.trim()) && row.querySelector("a"));
+		const amount = (findPillageElement(doc)?.textContent ?? "").match(/[\d,]+/);
+		const hours = [...doc.querySelectorAll("center")].map((element) => element.textContent.trim()).map((text) => text.match(/^(?:该基地在\s*(\d+)\s*小时前被掠夺[。.]?|This base was pillaged\s+(\d+)\s+hour\(s\) ago\.?)$/i)).find(Boolean);
+		const levelPercent = owner.title.match(/\((\d+)% of your level\)/i);
+		const base = {
+			economy,
+			income,
+			npc,
+			occupied,
+			pillage: amount ? integer(amount[0]) : null,
+			hoursSincePillage: hours ? integer(hours[1] ?? hours[2]) : null,
+			ownerLevelPercent: levelPercent ? Number(levelPercent[1]) : null
+		};
+		return {
+			...base,
+			npcKind,
+			...inferBaseCount(base)
+		};
+	}
+	function readDefenderBaseId(report) {
+		let defender = false;
+		for (const row of report?.rows ?? []) {
+			const label = row.cells[0]?.textContent.trim().toLowerCase();
+			if (row.classList.contains("battle-report_subtitle")) defender = label === "防御舰队" || label === "defensive force";
+			if (!defender || label !== "基地" && label !== "base") continue;
+			const id = row.cells[1]?.textContent.trim() ?? "";
+			return /^[1-9]\d*$/.test(id) ? id : null;
+		}
+		return null;
+	}
+	var panelId = "astro-empires-base-estimate";
+	function mountBaseEstimate() {
+		if (document.getElementById(panelId)) return;
+		const base = readBaseDetails(document);
+		const anchor = findPillageElement(document);
+		if (!base || !anchor) return;
+		const host = document.createElement("div");
+		host.id = panelId;
+		const root = host.attachShadow({ mode: "open" });
+		const style = document.createElement("style");
+		style.textContent = `:host { all: initial !important; display: block !important; margin: 8px 0 !important; }
+        div { font: 14px/1.5 system-ui, sans-serif; color: #e7f1f6; text-align: center; direction: ltr; }`;
+		const container = document.createElement("div");
+		root.append(style, container);
+		anchor.after(host);
+		(0, vue.createApp)({ render: () => [
+			(0, vue.h)("strong", t("baseCountLabel") + ": "),
+			(0, vue.h)("span", base.count === null ? t("unavailable") : String(base.count)),
+			base.reason ? (0, vue.h)("div", t(base.reason)) : null
+		] }).mount(container);
+	}
+	function loadCombatBase(report, origin) {
+		const state = {
+			loading: (0, vue.ref)(false),
+			pillage: (0, vue.ref)(),
+			notice: (0, vue.ref)(null)
+		};
+		const id = readDefenderBaseId(report);
+		if (!id) {
+			state.notice.value = msg("baseIdUnavailable");
+			return state;
+		}
+		const url = new URL("/base.aspx", origin);
+		url.searchParams.set("base", id);
+		state.loading.value = true;
+		(async () => {
+			try {
+				const response = await window.fetch(url.href, {
+					credentials: "same-origin",
+					signal: AbortSignal.timeout(5e3)
+				});
+				const finalUrl = new URL(response.url);
+				if (!response.ok || finalUrl.origin !== url.origin || finalUrl.pathname !== "/base.aspx" || finalUrl.searchParams.get("base") !== id) throw new Error("Invalid base response");
+				const base = readBaseDetails(new DOMParser().parseFromString(await response.text(), "text/html"));
+				if (!base) throw new Error("Missing base data");
+				const count = base.npcKind === "drekons" ? 8 : base.count;
+				state.pillage.value = {
+					economy: base.economy,
+					income: base.income,
+					...count === null ? {} : { defenderBase: count }
+				};
+				state.notice.value = base.npcKind === "drekons" ? msg("baseDrekonsImport") : base.reason ? msg("baseManualCount", { reason: base.reason }) : null;
+			} catch {
+				state.notice.value = msg("baseFetchFailed");
+			} finally {
+				state.loading.value = false;
+			}
+		})();
+		return state;
+	}
 	function initializeFleetActions() {
 		console.debug("[Astro Empires] 腳本已載入");
 		if (location.hostname !== "borealis.astroempires.com" || document.getElementById("astro-empires-fleet-actions")) return;
@@ -5772,6 +5986,8 @@ dd {
 		const defenseRows = readUnitRows(defenseTable, true);
 		const attacker = attackRows.map(({ unit }) => unit);
 		const defender = defenseRows.map(({ unit }) => unit);
+		const report = document.querySelector("table.battle-report_info");
+		const baseImport = attack === "base" && (attacker.length || defender.length) ? loadCombatBase(report, location.origin) : void 0;
 		mountFleetActions(lastTable, [{
 			units: attacker,
 			side: "attacker"
@@ -5781,7 +5997,7 @@ dd {
 		}], [["calculator", {
 			aS: attacker,
 			dS: defender
-		}]], () => readCombatTechnologies(document.querySelector("table.battle-report_info"), attackRows, defenseRows));
+		}]], () => readCombatTechnologies(report, attackRows, defenseRows), baseImport);
 	}
 	function readUnitRows(table, includeDefenses = false) {
 		const unitRows = [];
@@ -5800,6 +6016,7 @@ dd {
 		initializeSettings();
 		mountReportAnalyzer();
 		initializeFleetActions();
+		if (location.pathname === "/base.aspx" && /^[1-9]\d*$/.test(new URLSearchParams(location.search).get("base") ?? "")) mountBaseEstimate();
 		if ([
 			"/messages.aspx",
 			"/board.aspx",
@@ -5807,6 +6024,701 @@ dd {
 		].includes(location.pathname)) initializeReportCopy();
 	}
 })(Vue);
+
+// Project license: GPL-3.0-or-later
+// Astro Empires Enhance
+// Copyright (C) 2026 simonkq1
+// Source code (version 0.10.0): https://github.com/simonkq1/AstroEmpires-Enhance
+// Original code and documentation are licensed under GPL-3.0-or-later.
+// Third-party material retains its own copyright and license notices.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+//
+//                     GNU GENERAL PUBLIC LICENSE
+//                        Version 3, 29 June 2007
+//
+//  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+//  Everyone is permitted to copy and distribute verbatim copies
+//  of this license document, but changing it is not allowed.
+//
+//                             Preamble
+//
+//   The GNU General Public License is a free, copyleft license for
+// software and other kinds of works.
+//
+//   The licenses for most software and other practical works are designed
+// to take away your freedom to share and change the works.  By contrast,
+// the GNU General Public License is intended to guarantee your freedom to
+// share and change all versions of a program--to make sure it remains free
+// software for all its users.  We, the Free Software Foundation, use the
+// GNU General Public License for most of our software; it applies also to
+// any other work released this way by its authors.  You can apply it to
+// your programs, too.
+//
+//   When we speak of free software, we are referring to freedom, not
+// price.  Our General Public Licenses are designed to make sure that you
+// have the freedom to distribute copies of free software (and charge for
+// them if you wish), that you receive source code or can get it if you
+// want it, that you can change the software or use pieces of it in new
+// free programs, and that you know you can do these things.
+//
+//   To protect your rights, we need to prevent others from denying you
+// these rights or asking you to surrender the rights.  Therefore, you have
+// certain responsibilities if you distribute copies of the software, or if
+// you modify it: responsibilities to respect the freedom of others.
+//
+//   For example, if you distribute copies of such a program, whether
+// gratis or for a fee, you must pass on to the recipients the same
+// freedoms that you received.  You must make sure that they, too, receive
+// or can get the source code.  And you must show them these terms so they
+// know their rights.
+//
+//   Developers that use the GNU GPL protect your rights with two steps:
+// (1) assert copyright on the software, and (2) offer you this License
+// giving you legal permission to copy, distribute and/or modify it.
+//
+//   For the developers' and authors' protection, the GPL clearly explains
+// that there is no warranty for this free software.  For both users' and
+// authors' sake, the GPL requires that modified versions be marked as
+// changed, so that their problems will not be attributed erroneously to
+// authors of previous versions.
+//
+//   Some devices are designed to deny users access to install or run
+// modified versions of the software inside them, although the manufacturer
+// can do so.  This is fundamentally incompatible with the aim of
+// protecting users' freedom to change the software.  The systematic
+// pattern of such abuse occurs in the area of products for individuals to
+// use, which is precisely where it is most unacceptable.  Therefore, we
+// have designed this version of the GPL to prohibit the practice for those
+// products.  If such problems arise substantially in other domains, we
+// stand ready to extend this provision to those domains in future versions
+// of the GPL, as needed to protect the freedom of users.
+//
+//   Finally, every program is threatened constantly by software patents.
+// States should not allow patents to restrict development and use of
+// software on general-purpose computers, but in those that do, we wish to
+// avoid the special danger that patents applied to a free program could
+// make it effectively proprietary.  To prevent this, the GPL assures that
+// patents cannot be used to render the program non-free.
+//
+//   The precise terms and conditions for copying, distribution and
+// modification follow.
+//
+//                        TERMS AND CONDITIONS
+//
+//   0. Definitions.
+//
+//   "This License" refers to version 3 of the GNU General Public License.
+//
+//   "Copyright" also means copyright-like laws that apply to other kinds of
+// works, such as semiconductor masks.
+//
+//   "The Program" refers to any copyrightable work licensed under this
+// License.  Each licensee is addressed as "you".  "Licensees" and
+// "recipients" may be individuals or organizations.
+//
+//   To "modify" a work means to copy from or adapt all or part of the work
+// in a fashion requiring copyright permission, other than the making of an
+// exact copy.  The resulting work is called a "modified version" of the
+// earlier work or a work "based on" the earlier work.
+//
+//   A "covered work" means either the unmodified Program or a work based
+// on the Program.
+//
+//   To "propagate" a work means to do anything with it that, without
+// permission, would make you directly or secondarily liable for
+// infringement under applicable copyright law, except executing it on a
+// computer or modifying a private copy.  Propagation includes copying,
+// distribution (with or without modification), making available to the
+// public, and in some countries other activities as well.
+//
+//   To "convey" a work means any kind of propagation that enables other
+// parties to make or receive copies.  Mere interaction with a user through
+// a computer network, with no transfer of a copy, is not conveying.
+//
+//   An interactive user interface displays "Appropriate Legal Notices"
+// to the extent that it includes a convenient and prominently visible
+// feature that (1) displays an appropriate copyright notice, and (2)
+// tells the user that there is no warranty for the work (except to the
+// extent that warranties are provided), that licensees may convey the
+// work under this License, and how to view a copy of this License.  If
+// the interface presents a list of user commands or options, such as a
+// menu, a prominent item in the list meets this criterion.
+//
+//   1. Source Code.
+//
+//   The "source code" for a work means the preferred form of the work
+// for making modifications to it.  "Object code" means any non-source
+// form of a work.
+//
+//   A "Standard Interface" means an interface that either is an official
+// standard defined by a recognized standards body, or, in the case of
+// interfaces specified for a particular programming language, one that
+// is widely used among developers working in that language.
+//
+//   The "System Libraries" of an executable work include anything, other
+// than the work as a whole, that (a) is included in the normal form of
+// packaging a Major Component, but which is not part of that Major
+// Component, and (b) serves only to enable use of the work with that
+// Major Component, or to implement a Standard Interface for which an
+// implementation is available to the public in source code form.  A
+// "Major Component", in this context, means a major essential component
+// (kernel, window system, and so on) of the specific operating system
+// (if any) on which the executable work runs, or a compiler used to
+// produce the work, or an object code interpreter used to run it.
+//
+//   The "Corresponding Source" for a work in object code form means all
+// the source code needed to generate, install, and (for an executable
+// work) run the object code and to modify the work, including scripts to
+// control those activities.  However, it does not include the work's
+// System Libraries, or general-purpose tools or generally available free
+// programs which are used unmodified in performing those activities but
+// which are not part of the work.  For example, Corresponding Source
+// includes interface definition files associated with source files for
+// the work, and the source code for shared libraries and dynamically
+// linked subprograms that the work is specifically designed to require,
+// such as by intimate data communication or control flow between those
+// subprograms and other parts of the work.
+//
+//   The Corresponding Source need not include anything that users
+// can regenerate automatically from other parts of the Corresponding
+// Source.
+//
+//   The Corresponding Source for a work in source code form is that
+// same work.
+//
+//   2. Basic Permissions.
+//
+//   All rights granted under this License are granted for the term of
+// copyright on the Program, and are irrevocable provided the stated
+// conditions are met.  This License explicitly affirms your unlimited
+// permission to run the unmodified Program.  The output from running a
+// covered work is covered by this License only if the output, given its
+// content, constitutes a covered work.  This License acknowledges your
+// rights of fair use or other equivalent, as provided by copyright law.
+//
+//   You may make, run and propagate covered works that you do not
+// convey, without conditions so long as your license otherwise remains
+// in force.  You may convey covered works to others for the sole purpose
+// of having them make modifications exclusively for you, or provide you
+// with facilities for running those works, provided that you comply with
+// the terms of this License in conveying all material for which you do
+// not control copyright.  Those thus making or running the covered works
+// for you must do so exclusively on your behalf, under your direction
+// and control, on terms that prohibit them from making any copies of
+// your copyrighted material outside their relationship with you.
+//
+//   Conveying under any other circumstances is permitted solely under
+// the conditions stated below.  Sublicensing is not allowed; section 10
+// makes it unnecessary.
+//
+//   3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+//
+//   No covered work shall be deemed part of an effective technological
+// measure under any applicable law fulfilling obligations under article
+// 11 of the WIPO copyright treaty adopted on 20 December 1996, or
+// similar laws prohibiting or restricting circumvention of such
+// measures.
+//
+//   When you convey a covered work, you waive any legal power to forbid
+// circumvention of technological measures to the extent such circumvention
+// is effected by exercising rights under this License with respect to
+// the covered work, and you disclaim any intention to limit operation or
+// modification of the work as a means of enforcing, against the work's
+// users, your or third parties' legal rights to forbid circumvention of
+// technological measures.
+//
+//   4. Conveying Verbatim Copies.
+//
+//   You may convey verbatim copies of the Program's source code as you
+// receive it, in any medium, provided that you conspicuously and
+// appropriately publish on each copy an appropriate copyright notice;
+// keep intact all notices stating that this License and any
+// non-permissive terms added in accord with section 7 apply to the code;
+// keep intact all notices of the absence of any warranty; and give all
+// recipients a copy of this License along with the Program.
+//
+//   You may charge any price or no price for each copy that you convey,
+// and you may offer support or warranty protection for a fee.
+//
+//   5. Conveying Modified Source Versions.
+//
+//   You may convey a work based on the Program, or the modifications to
+// produce it from the Program, in the form of source code under the
+// terms of section 4, provided that you also meet all of these conditions:
+//
+//     a) The work must carry prominent notices stating that you modified
+//     it, and giving a relevant date.
+//
+//     b) The work must carry prominent notices stating that it is
+//     released under this License and any conditions added under section
+//     7.  This requirement modifies the requirement in section 4 to
+//     "keep intact all notices".
+//
+//     c) You must license the entire work, as a whole, under this
+//     License to anyone who comes into possession of a copy.  This
+//     License will therefore apply, along with any applicable section 7
+//     additional terms, to the whole of the work, and all its parts,
+//     regardless of how they are packaged.  This License gives no
+//     permission to license the work in any other way, but it does not
+//     invalidate such permission if you have separately received it.
+//
+//     d) If the work has interactive user interfaces, each must display
+//     Appropriate Legal Notices; however, if the Program has interactive
+//     interfaces that do not display Appropriate Legal Notices, your
+//     work need not make them do so.
+//
+//   A compilation of a covered work with other separate and independent
+// works, which are not by their nature extensions of the covered work,
+// and which are not combined with it such as to form a larger program,
+// in or on a volume of a storage or distribution medium, is called an
+// "aggregate" if the compilation and its resulting copyright are not
+// used to limit the access or legal rights of the compilation's users
+// beyond what the individual works permit.  Inclusion of a covered work
+// in an aggregate does not cause this License to apply to the other
+// parts of the aggregate.
+//
+//   6. Conveying Non-Source Forms.
+//
+//   You may convey a covered work in object code form under the terms
+// of sections 4 and 5, provided that you also convey the
+// machine-readable Corresponding Source under the terms of this License,
+// in one of these ways:
+//
+//     a) Convey the object code in, or embodied in, a physical product
+//     (including a physical distribution medium), accompanied by the
+//     Corresponding Source fixed on a durable physical medium
+//     customarily used for software interchange.
+//
+//     b) Convey the object code in, or embodied in, a physical product
+//     (including a physical distribution medium), accompanied by a
+//     written offer, valid for at least three years and valid for as
+//     long as you offer spare parts or customer support for that product
+//     model, to give anyone who possesses the object code either (1) a
+//     copy of the Corresponding Source for all the software in the
+//     product that is covered by this License, on a durable physical
+//     medium customarily used for software interchange, for a price no
+//     more than your reasonable cost of physically performing this
+//     conveying of source, or (2) access to copy the
+//     Corresponding Source from a network server at no charge.
+//
+//     c) Convey individual copies of the object code with a copy of the
+//     written offer to provide the Corresponding Source.  This
+//     alternative is allowed only occasionally and noncommercially, and
+//     only if you received the object code with such an offer, in accord
+//     with subsection 6b.
+//
+//     d) Convey the object code by offering access from a designated
+//     place (gratis or for a charge), and offer equivalent access to the
+//     Corresponding Source in the same way through the same place at no
+//     further charge.  You need not require recipients to copy the
+//     Corresponding Source along with the object code.  If the place to
+//     copy the object code is a network server, the Corresponding Source
+//     may be on a different server (operated by you or a third party)
+//     that supports equivalent copying facilities, provided you maintain
+//     clear directions next to the object code saying where to find the
+//     Corresponding Source.  Regardless of what server hosts the
+//     Corresponding Source, you remain obligated to ensure that it is
+//     available for as long as needed to satisfy these requirements.
+//
+//     e) Convey the object code using peer-to-peer transmission, provided
+//     you inform other peers where the object code and Corresponding
+//     Source of the work are being offered to the general public at no
+//     charge under subsection 6d.
+//
+//   A separable portion of the object code, whose source code is excluded
+// from the Corresponding Source as a System Library, need not be
+// included in conveying the object code work.
+//
+//   A "User Product" is either (1) a "consumer product", which means any
+// tangible personal property which is normally used for personal, family,
+// or household purposes, or (2) anything designed or sold for incorporation
+// into a dwelling.  In determining whether a product is a consumer product,
+// doubtful cases shall be resolved in favor of coverage.  For a particular
+// product received by a particular user, "normally used" refers to a
+// typical or common use of that class of product, regardless of the status
+// of the particular user or of the way in which the particular user
+// actually uses, or expects or is expected to use, the product.  A product
+// is a consumer product regardless of whether the product has substantial
+// commercial, industrial or non-consumer uses, unless such uses represent
+// the only significant mode of use of the product.
+//
+//   "Installation Information" for a User Product means any methods,
+// procedures, authorization keys, or other information required to install
+// and execute modified versions of a covered work in that User Product from
+// a modified version of its Corresponding Source.  The information must
+// suffice to ensure that the continued functioning of the modified object
+// code is in no case prevented or interfered with solely because
+// modification has been made.
+//
+//   If you convey an object code work under this section in, or with, or
+// specifically for use in, a User Product, and the conveying occurs as
+// part of a transaction in which the right of possession and use of the
+// User Product is transferred to the recipient in perpetuity or for a
+// fixed term (regardless of how the transaction is characterized), the
+// Corresponding Source conveyed under this section must be accompanied
+// by the Installation Information.  But this requirement does not apply
+// if neither you nor any third party retains the ability to install
+// modified object code on the User Product (for example, the work has
+// been installed in ROM).
+//
+//   The requirement to provide Installation Information does not include a
+// requirement to continue to provide support service, warranty, or updates
+// for a work that has been modified or installed by the recipient, or for
+// the User Product in which it has been modified or installed.  Access to a
+// network may be denied when the modification itself materially and
+// adversely affects the operation of the network or violates the rules and
+// protocols for communication across the network.
+//
+//   Corresponding Source conveyed, and Installation Information provided,
+// in accord with this section must be in a format that is publicly
+// documented (and with an implementation available to the public in
+// source code form), and must require no special password or key for
+// unpacking, reading or copying.
+//
+//   7. Additional Terms.
+//
+//   "Additional permissions" are terms that supplement the terms of this
+// License by making exceptions from one or more of its conditions.
+// Additional permissions that are applicable to the entire Program shall
+// be treated as though they were included in this License, to the extent
+// that they are valid under applicable law.  If additional permissions
+// apply only to part of the Program, that part may be used separately
+// under those permissions, but the entire Program remains governed by
+// this License without regard to the additional permissions.
+//
+//   When you convey a copy of a covered work, you may at your option
+// remove any additional permissions from that copy, or from any part of
+// it.  (Additional permissions may be written to require their own
+// removal in certain cases when you modify the work.)  You may place
+// additional permissions on material, added by you to a covered work,
+// for which you have or can give appropriate copyright permission.
+//
+//   Notwithstanding any other provision of this License, for material you
+// add to a covered work, you may (if authorized by the copyright holders of
+// that material) supplement the terms of this License with terms:
+//
+//     a) Disclaiming warranty or limiting liability differently from the
+//     terms of sections 15 and 16 of this License; or
+//
+//     b) Requiring preservation of specified reasonable legal notices or
+//     author attributions in that material or in the Appropriate Legal
+//     Notices displayed by works containing it; or
+//
+//     c) Prohibiting misrepresentation of the origin of that material, or
+//     requiring that modified versions of such material be marked in
+//     reasonable ways as different from the original version; or
+//
+//     d) Limiting the use for publicity purposes of names of licensors or
+//     authors of the material; or
+//
+//     e) Declining to grant rights under trademark law for use of some
+//     trade names, trademarks, or service marks; or
+//
+//     f) Requiring indemnification of licensors and authors of that
+//     material by anyone who conveys the material (or modified versions of
+//     it) with contractual assumptions of liability to the recipient, for
+//     any liability that these contractual assumptions directly impose on
+//     those licensors and authors.
+//
+//   All other non-permissive additional terms are considered "further
+// restrictions" within the meaning of section 10.  If the Program as you
+// received it, or any part of it, contains a notice stating that it is
+// governed by this License along with a term that is a further
+// restriction, you may remove that term.  If a license document contains
+// a further restriction but permits relicensing or conveying under this
+// License, you may add to a covered work material governed by the terms
+// of that license document, provided that the further restriction does
+// not survive such relicensing or conveying.
+//
+//   If you add terms to a covered work in accord with this section, you
+// must place, in the relevant source files, a statement of the
+// additional terms that apply to those files, or a notice indicating
+// where to find the applicable terms.
+//
+//   Additional terms, permissive or non-permissive, may be stated in the
+// form of a separately written license, or stated as exceptions;
+// the above requirements apply either way.
+//
+//   8. Termination.
+//
+//   You may not propagate or modify a covered work except as expressly
+// provided under this License.  Any attempt otherwise to propagate or
+// modify it is void, and will automatically terminate your rights under
+// this License (including any patent licenses granted under the third
+// paragraph of section 11).
+//
+//   However, if you cease all violation of this License, then your
+// license from a particular copyright holder is reinstated (a)
+// provisionally, unless and until the copyright holder explicitly and
+// finally terminates your license, and (b) permanently, if the copyright
+// holder fails to notify you of the violation by some reasonable means
+// prior to 60 days after the cessation.
+//
+//   Moreover, your license from a particular copyright holder is
+// reinstated permanently if the copyright holder notifies you of the
+// violation by some reasonable means, this is the first time you have
+// received notice of violation of this License (for any work) from that
+// copyright holder, and you cure the violation prior to 30 days after
+// your receipt of the notice.
+//
+//   Termination of your rights under this section does not terminate the
+// licenses of parties who have received copies or rights from you under
+// this License.  If your rights have been terminated and not permanently
+// reinstated, you do not qualify to receive new licenses for the same
+// material under section 10.
+//
+//   9. Acceptance Not Required for Having Copies.
+//
+//   You are not required to accept this License in order to receive or
+// run a copy of the Program.  Ancillary propagation of a covered work
+// occurring solely as a consequence of using peer-to-peer transmission
+// to receive a copy likewise does not require acceptance.  However,
+// nothing other than this License grants you permission to propagate or
+// modify any covered work.  These actions infringe copyright if you do
+// not accept this License.  Therefore, by modifying or propagating a
+// covered work, you indicate your acceptance of this License to do so.
+//
+//   10. Automatic Licensing of Downstream Recipients.
+//
+//   Each time you convey a covered work, the recipient automatically
+// receives a license from the original licensors, to run, modify and
+// propagate that work, subject to this License.  You are not responsible
+// for enforcing compliance by third parties with this License.
+//
+//   An "entity transaction" is a transaction transferring control of an
+// organization, or substantially all assets of one, or subdividing an
+// organization, or merging organizations.  If propagation of a covered
+// work results from an entity transaction, each party to that
+// transaction who receives a copy of the work also receives whatever
+// licenses to the work the party's predecessor in interest had or could
+// give under the previous paragraph, plus a right to possession of the
+// Corresponding Source of the work from the predecessor in interest, if
+// the predecessor has it or can get it with reasonable efforts.
+//
+//   You may not impose any further restrictions on the exercise of the
+// rights granted or affirmed under this License.  For example, you may
+// not impose a license fee, royalty, or other charge for exercise of
+// rights granted under this License, and you may not initiate litigation
+// (including a cross-claim or counterclaim in a lawsuit) alleging that
+// any patent claim is infringed by making, using, selling, offering for
+// sale, or importing the Program or any portion of it.
+//
+//   11. Patents.
+//
+//   A "contributor" is a copyright holder who authorizes use under this
+// License of the Program or a work on which the Program is based.  The
+// work thus licensed is called the contributor's "contributor version".
+//
+//   A contributor's "essential patent claims" are all patent claims
+// owned or controlled by the contributor, whether already acquired or
+// hereafter acquired, that would be infringed by some manner, permitted
+// by this License, of making, using, or selling its contributor version,
+// but do not include claims that would be infringed only as a
+// consequence of further modification of the contributor version.  For
+// purposes of this definition, "control" includes the right to grant
+// patent sublicenses in a manner consistent with the requirements of
+// this License.
+//
+//   Each contributor grants you a non-exclusive, worldwide, royalty-free
+// patent license under the contributor's essential patent claims, to
+// make, use, sell, offer for sale, import and otherwise run, modify and
+// propagate the contents of its contributor version.
+//
+//   In the following three paragraphs, a "patent license" is any express
+// agreement or commitment, however denominated, not to enforce a patent
+// (such as an express permission to practice a patent or covenant not to
+// sue for patent infringement).  To "grant" such a patent license to a
+// party means to make such an agreement or commitment not to enforce a
+// patent against the party.
+//
+//   If you convey a covered work, knowingly relying on a patent license,
+// and the Corresponding Source of the work is not available for anyone
+// to copy, free of charge and under the terms of this License, through a
+// publicly available network server or other readily accessible means,
+// then you must either (1) cause the Corresponding Source to be so
+// available, or (2) arrange to deprive yourself of the benefit of the
+// patent license for this particular work, or (3) arrange, in a manner
+// consistent with the requirements of this License, to extend the patent
+// license to downstream recipients.  "Knowingly relying" means you have
+// actual knowledge that, but for the patent license, your conveying the
+// covered work in a country, or your recipient's use of the covered work
+// in a country, would infringe one or more identifiable patents in that
+// country that you have reason to believe are valid.
+//
+//   If, pursuant to or in connection with a single transaction or
+// arrangement, you convey, or propagate by procuring conveyance of, a
+// covered work, and grant a patent license to some of the parties
+// receiving the covered work authorizing them to use, propagate, modify
+// or convey a specific copy of the covered work, then the patent license
+// you grant is automatically extended to all recipients of the covered
+// work and works based on it.
+//
+//   A patent license is "discriminatory" if it does not include within
+// the scope of its coverage, prohibits the exercise of, or is
+// conditioned on the non-exercise of one or more of the rights that are
+// specifically granted under this License.  You may not convey a covered
+// work if you are a party to an arrangement with a third party that is
+// in the business of distributing software, under which you make payment
+// to the third party based on the extent of your activity of conveying
+// the work, and under which the third party grants, to any of the
+// parties who would receive the covered work from you, a discriminatory
+// patent license (a) in connection with copies of the covered work
+// conveyed by you (or copies made from those copies), or (b) primarily
+// for and in connection with specific products or compilations that
+// contain the covered work, unless you entered into that arrangement,
+// or that patent license was granted, prior to 28 March 2007.
+//
+//   Nothing in this License shall be construed as excluding or limiting
+// any implied license or other defenses to infringement that may
+// otherwise be available to you under applicable patent law.
+//
+//   12. No Surrender of Others' Freedom.
+//
+//   If conditions are imposed on you (whether by court order, agreement or
+// otherwise) that contradict the conditions of this License, they do not
+// excuse you from the conditions of this License.  If you cannot convey a
+// covered work so as to satisfy simultaneously your obligations under this
+// License and any other pertinent obligations, then as a consequence you may
+// not convey it at all.  For example, if you agree to terms that obligate you
+// to collect a royalty for further conveying from those to whom you convey
+// the Program, the only way you could satisfy both those terms and this
+// License would be to refrain entirely from conveying the Program.
+//
+//   13. Use with the GNU Affero General Public License.
+//
+//   Notwithstanding any other provision of this License, you have
+// permission to link or combine any covered work with a work licensed
+// under version 3 of the GNU Affero General Public License into a single
+// combined work, and to convey the resulting work.  The terms of this
+// License will continue to apply to the part which is the covered work,
+// but the special requirements of the GNU Affero General Public License,
+// section 13, concerning interaction through a network will apply to the
+// combination as such.
+//
+//   14. Revised Versions of this License.
+//
+//   The Free Software Foundation may publish revised and/or new versions of
+// the GNU General Public License from time to time.  Such new versions will
+// be similar in spirit to the present version, but may differ in detail to
+// address new problems or concerns.
+//
+//   Each version is given a distinguishing version number.  If the
+// Program specifies that a certain numbered version of the GNU General
+// Public License "or any later version" applies to it, you have the
+// option of following the terms and conditions either of that numbered
+// version or of any later version published by the Free Software
+// Foundation.  If the Program does not specify a version number of the
+// GNU General Public License, you may choose any version ever published
+// by the Free Software Foundation.
+//
+//   If the Program specifies that a proxy can decide which future
+// versions of the GNU General Public License can be used, that proxy's
+// public statement of acceptance of a version permanently authorizes you
+// to choose that version for the Program.
+//
+//   Later license versions may give you additional or different
+// permissions.  However, no additional obligations are imposed on any
+// author or copyright holder as a result of your choosing to follow a
+// later version.
+//
+//   15. Disclaimer of Warranty.
+//
+//   THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+// APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+// HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+// OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+// IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+// ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+//
+//   16. Limitation of Liability.
+//
+//   IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+// WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+// THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+// GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+// USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+// DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+// PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+// EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+// SUCH DAMAGES.
+//
+//   17. Interpretation of Sections 15 and 16.
+//
+//   If the disclaimer of warranty and limitation of liability provided
+// above cannot be given local legal effect according to their terms,
+// reviewing courts shall apply local law that most closely approximates
+// an absolute waiver of all civil liability in connection with the
+// Program, unless a warranty or assumption of liability accompanies a
+// copy of the Program in return for a fee.
+//
+//                      END OF TERMS AND CONDITIONS
+//
+//             How to Apply These Terms to Your New Programs
+//
+//   If you develop a new program, and you want it to be of the greatest
+// possible use to the public, the best way to achieve this is to make it
+// free software which everyone can redistribute and change under these terms.
+//
+//   To do so, attach the following notices to the program.  It is safest
+// to attach them to the start of each source file to most effectively
+// state the exclusion of warranty; and each file should have at least
+// the "copyright" line and a pointer to where the full notice is found.
+//
+//     <one line to give the program's name and a brief idea of what it does.>
+//     Copyright (C) <year>  <name of author>
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// Also add information on how to contact you by electronic and paper mail.
+//
+//   If the program does terminal interaction, make it output a short
+// notice like this when it starts in an interactive mode:
+//
+//     <program>  Copyright (C) <year>  <name of author>
+//     This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+//     This is free software, and you are welcome to redistribute it
+//     under certain conditions; type `show c' for details.
+//
+// The hypothetical commands `show w' and `show c' should show the appropriate
+// parts of the General Public License.  Of course, your program's commands
+// might be different; for a GUI interface, you would use an "about box".
+//
+//   You should also get your employer (if you work as a programmer) or school,
+// if any, to sign a "copyright disclaimer" for the program, if necessary.
+// For more information on this, and how to apply and follow the GNU GPL, see
+// <https://www.gnu.org/licenses/>.
+//
+//   The GNU General Public License does not permit incorporating your program
+// into proprietary programs.  If your program is a subroutine library, you
+// may consider it more useful to permit linking proprietary applications with
+// the library.  If this is what you want to do, use the GNU Lesser General
+// Public License instead of this License.  But first, please read
+// <https://www.gnu.org/licenses/why-not-lgpl.html>.
 
 // Third-party licenses
 // PrimeVue source: https://github.com/primefaces/primevue/tree/4.5.5

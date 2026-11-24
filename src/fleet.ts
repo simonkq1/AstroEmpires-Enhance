@@ -13,6 +13,11 @@ export interface FleetUnit {
 
 export type CalculatorRosters = Partial<Record<CalculatorSide, readonly FleetUnit[]>>;
 export type CalculatorTechnologies = Partial<Record<'aT' | 'dT', Readonly<Record<string, number>>>>;
+export interface CalculatorPillage {
+    economy: number;
+    income?: number;
+    defenderBase?: number;
+}
 
 // 名稱沿用術語總表，利維坦的 AEBits 代碼為 LE。
 const ships = [
@@ -56,10 +61,12 @@ const shipsAndDefenses = [
 export function parseFleetUnit(nameText: string, quantityText: string, includeDefenses = false): FleetUnit | undefined {
     const name = nameText.trim();
     const count = quantityText.trim();
-    if (!name || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(count)) return;
+    if (!name || !/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(count)) return;
 
-    const quantity = Number(count.replaceAll(',', ''));
-    if (!Number.isSafeInteger(quantity) || quantity <= 0) return;
+    const normalizedCount = count.replaceAll(',', '').replace(/^0+(?=\d)/, '')
+        .replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    const quantity = Number(normalizedCount);
+    if (!Number.isFinite(quantity) || quantity > Number.MAX_SAFE_INTEGER || quantity <= 0 || String(quantity) !== normalizedCount) return;
 
     return { ...identifyFleetUnit(name, includeDefenses), quantity };
 }
@@ -77,7 +84,7 @@ export function formatFleetTsv(units: readonly FleetUnit[], language: FleetLangu
     return units.map(unit => `${unit[language]}\t${unit.quantity}`).join('\n');
 }
 
-export function buildCalculatorUrl(rosters: CalculatorRosters, technologies?: CalculatorTechnologies, locale: Locale = 'zh-CN'): { url: URL } | { unknownNames: string[] } {
+export function buildCalculatorUrl(rosters: CalculatorRosters, technologies?: CalculatorTechnologies, locale: Locale = 'zh-CN', pillage?: CalculatorPillage): { url: URL } | { unknownNames: string[] } {
     const unknownNames = Object.values(rosters).flatMap(units => units.filter(unit => !unit.code).map(unit => unit.name));
     if (unknownNames.length) return { unknownNames };
 
@@ -89,6 +96,12 @@ export function buildCalculatorUrl(rosters: CalculatorRosters, technologies?: Ca
     for (const side of ['aT', 'dT'] as const) {
         const fields = Object.entries(technologies?.[side] ?? {});
         if (fields.length) url.searchParams.set(side, fields.map(([field, level]) => `${field}:${level}`).join(','));
+    }
+    if (pillage) {
+        const values = [`economy:${pillage.economy}`];
+        if (pillage.income !== undefined) values.push(`income:${pillage.income}`);
+        if (pillage.defenderBase !== undefined) values.push(`defenderBase:${pillage.defenderBase}`);
+        url.searchParams.set('p', values.join(','));
     }
     url.searchParams.set('gv', '5');
     return { url };

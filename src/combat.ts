@@ -128,8 +128,9 @@ export function inferCombatTechnology(observations: readonly CombatObservation[]
         const scaledBase = base * bonus;
         const level = Math.round((displayed * 10_000 / scaledBase - 1) * 20);
         const scaledResult = scaledBase * (100 + 5 * level);
+        // 半分邊界接受向上或向下顯示，避免遊戲浮點捨入造成矛盾。
         const matches = level >= 0 && Number.isSafeInteger(scaledResult) &&
-            Math.round(scaledResult / 10_000) === Math.round(displayed * 100);
+            Math.abs(scaledResult - Math.round(displayed * 100) * 10_000) <= 5_000;
         candidates.set(key, matches && (!candidates.has(key) || candidates.get(key) === level) ? level : null);
         if (candidates.get(key) === null) reasons[key] = msg('conflictingValues');
     }
@@ -167,7 +168,7 @@ function readObservation({ unit, row }: FleetUnitRow): CombatObservation {
 
 function readModifiers(report: HTMLTableElement | null): Record<'aT' | 'dT', CombatModifiers> {
     const unknown: CombatModifiers = { CC: null, TaC: null, DfC: null, fullDefenses: false };
-    const sides = { aT: { ...unknown }, dT: { ...unknown } };
+    const sides = { aT: { ...unknown, CC: 0, TaC: 0, DfC: 0 }, dT: { ...unknown } };
     let side: CombatModifiers | undefined;
 
     for (const row of report?.rows ?? []) {
@@ -179,7 +180,8 @@ function readModifiers(report: HTMLTableElement | null): Record<'aT' | 'dT', Com
             // 已識別的陣營區塊只會列出存在的加成。
             if (side) Object.assign(side, { CC: 0, TaC: 0, DfC: 0 });
         }
-        if (!side || !valueCell) continue;
+        // 指揮中心與指揮官加成只適用於守方。
+        if (!side || side === sides.aT || !valueCell) continue;
 
         const value = valueCell.textContent.trim();
         switch (label) {
@@ -209,7 +211,7 @@ export function readCommander(value: string): Pick<CombatModifiers, 'DfC' | 'TaC
         const kind = match[1].trim().toLowerCase();
         if (/^(?:defense|防御精通|防禦精通)$/.test(kind)) return { DfC: level, TaC: 0 };
         if (/^(?:tactical|战术精通|戰術精通)$/.test(kind)) return { DfC: 0, TaC: level };
-        if (/^(?:construction|research|production|logistics|建造精通|研究精通|生产精通|后勤精通)$/.test(kind)) {
+        if (/^(?:construction|research|production|logistics|建筑精通|建造精通|科研精通|研究精通|生产精通|后勤精通)$/.test(kind)) {
             return { DfC: 0, TaC: 0 };
         }
     }

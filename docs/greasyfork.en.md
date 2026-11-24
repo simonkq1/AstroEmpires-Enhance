@@ -41,6 +41,8 @@ Imports use each side’s **initial forces**, including fractional forces and un
 
 Technology inference depends on usable statistics and bonus information. Missing data, damaged base defenses or conflicting values may leave technologies unconfirmed. Those fields are omitted from the import and should be checked manually in the calculator. Reports containing only unit tables can still import valid forces, although some technologies may remain unknown.
 
+The attacker receives no Command Center or commander bonuses, so weapon technologies can be inferred from usable attacker unit statistics even without report metadata. Defender bonuses depend on report information and remain unconfirmed when the required data is missing.
+
 Unknown units, invalid initial quantities or incomplete unit rows block the import and show an explanation. Editing the input clears the previous result; correct the report and analyze it again.
 
 ## Fleet details and combat tools
@@ -70,12 +72,32 @@ On a fleet movement page (`fleet.aspx` with a valid `fleet` ID and `view=move`),
 
 Invalid travel times clear the previous estimates. This feature displays predictions only and does not launch the fleet.
 
+## Base economy and base count
+
+On a base page, the estimated number of bases owned by the player appears below the pillage value. A count is shown only when the available data identifies a positive integer under v5 rules. Occupied or recently pillaged bases and unconfirmed data show an explanation. Drekons / 不明生物 and United Colonies / 联合殖民地 are NPCs; player base counts do not apply to them.
+
+When attacking a base, the script reads the target base page once on the same server, waits up to 5 seconds, then enables AEBits. Copying remains available. In `X/Y`, X is imported as income and Y as economy. A single `Y` supplies both income and economy. For example, `89/126` imports income 89 and economy 126.
+
+Drekons uses a fixed base count of 8; United Colonies omits the count and keeps known income and economy. Other successful reads with an unknown count also keep income and economy; a failed read omits all three while keeping fleet and technology imports available. Check hours since the last pillage and any omitted base count manually in the calculator. Reading the page does not launch an attack or pillage.
+
 ## Data and external resources
 
 - Your language setting is saved in the browser’s storage for Borealis. If saving fails, the selected language still applies to the current page and a message explains the failure.
 - Report conversion and analysis run in the current page. The script does not save pasted reports to browser storage; the input is not retained after leaving the page.
 - Clicking an AEBits import sends forces, confirmed technologies and bonuses to AEBits through the URL parameters of the new tab.
 - The script loads Vue from jsDelivr through `@require` and the Material Icons font from Google Fonts. If the font fails to load, the menu button remains usable with fallback arrow and close symbols.
+
+## License
+
+Copyright (C) 2026 simonkq1
+
+Original code and documentation are licensed under **GPL-3.0-or-later**: GNU GPL version 3 or, at your option, any later version published by the Free Software Foundation. The [full license](https://www.gnu.org/licenses/gpl-3.0.html) is also included in the installation file.
+
+Use, modification, commercial use, charging for copies and redistribution are permitted under its terms. Redistribution must retain copyright, license and warranty notices and include the license. Distributed modifications must be marked with the changes and date, remain under the GPL, and provide recipients with corresponding source code. Private modifications that are not distributed need not be published. No additional noncommercial or no-redistribution restrictions apply. This software comes WITHOUT ANY WARRANTY, including implied warranties of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE; limitations of liability follow the GPL terms.
+
+The [source repository](https://github.com/simonkq1/AstroEmpires-Enhance) includes TypeScript, required bundled third-party sources, build scripts and configuration, dependency declarations and the lockfile. Release records must identify the commit or version tag corresponding to each installation file. Maintainers must keep that corresponding source available for modification and rebuilding.
+
+Vue, PrimeVue and PrimeUIX retain their MIT licenses and copyright notices. Material Icons uses its [Apache 2.0 license](https://developers.google.com/fonts/docs/material_icons#licensing). Game content, report examples and other third-party material remain subject to their respective rights and are not relicensed by this project under the GPL.
 
 ## Links
 

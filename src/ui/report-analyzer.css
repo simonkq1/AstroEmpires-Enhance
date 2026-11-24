@@ -54,6 +54,11 @@ select:focus-visible {
     outline-offset: 2px;
 }
 
+.help-dialog a:focus-visible {
+    outline: 2px solid #91daff;
+    outline-offset: 2px;
+}
+
 .settings-dialog,
 .help-dialog {
     font: 14px/1.5 system-ui, sans-serif;
@@ -79,13 +84,18 @@ select:focus-visible {
     overflow-wrap: anywhere;
 }
 
-.help-dialog section {
+.help-dialog section,
+.help-dialog footer {
     margin: 20px 0;
 }
 
 .help-dialog h3 {
     color: #91daff;
     font-size: 16px;
+}
+
+.help-dialog a {
+    color: #91daff;
 }
 
 .settings-dialog fieldset {

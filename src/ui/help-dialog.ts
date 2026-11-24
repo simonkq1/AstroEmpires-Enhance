@@ -6,6 +6,7 @@ const sections = [
     { title: 'analyzeBbcode', text: ['helpAnalyzePaste', 'helpAnalyzeResults'] },
     { title: 'importCalculator', text: ['helpImport', 'helpImportErrors'] },
     { title: 'helpFleetCombat', text: ['helpFleet', 'helpCombat'] },
+    { title: 'baseTools', text: ['helpBaseEstimate', 'helpBaseFetch'] },
     { title: 'estimatedArrival', text: ['helpArrival', 'helpClocks'] },
     { title: 'settings', text: ['helpLanguageFirst', 'helpLanguageSettings'] },
 ] as const;
@@ -50,6 +51,17 @@ export const HelpDialog = defineComponent({
                 h('h3', t(section.title)),
                 ...section.text.map(key => h('p', t(key))),
             ])),
+            h('footer', { class: 'license-notice' }, [
+                h('h3', t('licenseTitle')),
+                h('p', 'Copyright (C) 2026 simonkq1'),
+                h('p', t('licenseSummary')),
+                h('p', t('thirdPartyRights')),
+                h('p', [
+                    h('a', { href: 'https://www.gnu.org/licenses/gpl-3.0.html', target: '_blank', rel: 'noopener noreferrer' }, t('licenseTerms')),
+                    ' · ',
+                    h('a', { href: 'https://github.com/simonkq1/AstroEmpires-Enhance', target: '_blank', rel: 'noopener noreferrer' }, t('sourceCode')),
+                ]),
+            ]),
             h('div', { class: 'settings-actions' }, [h('button', { type: 'button', onClick: close }, t('close'))]),
         ]);
     },

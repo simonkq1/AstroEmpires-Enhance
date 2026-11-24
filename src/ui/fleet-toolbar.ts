@@ -6,6 +6,7 @@ import { buildCalculatorUrl, formatFleetTsv, type CalculatorRosters, type FleetL
 import styles from './fleet-toolbar.css?inline';
 import { setPrimeVueStyleRoot } from './primevue-style.ts';
 import { language, msg, t, type Message, type MessageKey } from '../i18n.ts';
+import type { BaseImportState } from '../combat-base.ts';
 
 export const panelId = 'astro-empires-fleet-actions';
 const languages = [['chinese', 'chinese'], ['english', 'english']] as const;
@@ -20,6 +21,7 @@ export function mountFleetActions(
     sources: CopySource[],
     calculators: CalculatorChoice[],
     readTechnologies?: () => ReturnType<typeof readCombatTechnologies>,
+    baseImport?: BaseImportState,
 ): void {
     const availableSources = sources.filter(({ units }) => units.length);
     if (!availableSources.length) return;
@@ -90,7 +92,8 @@ export function mountFleetActions(
             function openCalculator(rosters: CalculatorRosters): void {
                 expanded.value = null;
                 const combat = readTechnologies?.();
-                const result = buildCalculatorUrl(rosters, combat?.technologies, language.value);
+                if (baseImport?.loading.value) return;
+                const result = buildCalculatorUrl(rosters, combat?.technologies, language.value, baseImport?.pillage.value);
                 if ('unknownNames' in result) {
                     status.value = msg('unknownImport', { names: result.unknownNames });
                     return;
@@ -103,10 +106,11 @@ export function mountFleetActions(
             return () => [
                 h('div', { class: 'actions' }, [
                     menu('copy', 'copyFleet', copyChoices),
-                    calculatorChoices.length === 1 ? actionButton(...calculatorChoices[0])
+                    calculatorChoices.length === 1 ? actionButton(calculatorChoices[0][0], calculatorChoices[0][1], { disabled: baseImport?.loading.value ?? false })
                         : menu('aebits', 'calculator', calculatorChoices),
                 ]),
                 h('div', { class: 'status', role: 'status' }, t(status.value)),
+                baseImport ? h('div', { class: 'status', role: 'status' }, baseImport.loading.value ? t('baseLoading') : t(baseImport.notice.value)) : null,
                 h('textarea', {
                     ref: textarea,
                     class: 'fallback',

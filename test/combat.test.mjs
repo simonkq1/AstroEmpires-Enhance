@@ -1,9 +1,42 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { inferCombatTechnology } from '../src/combat.ts';
+import { inferCombatTechnology, readCommander } from '../src/combat.ts';
 import { buildCalculatorUrl, parseFleetUnit } from '../src/fleet.ts';
 
 const noBonuses = { CC: 0, TaC: 0, DfC: 0, fullDefenses: false };
+
+test('六種指揮官的中英文名稱僅防禦及戰術提供戰鬥加成', () => {
+    for (const [chinese, english, expected] of [
+        ['建筑精通', 'Construction', { DfC: 0, TaC: 0 }],
+        ['科研精通', 'Research', { DfC: 0, TaC: 0 }],
+        ['生产精通', 'Production', { DfC: 0, TaC: 0 }],
+        ['防御精通', 'Defense', { DfC: 14, TaC: 0 }],
+        ['战术精通', 'Tactical', { DfC: 0, TaC: 14 }],
+        ['后勤精通', 'Logistics', { DfC: 0, TaC: 0 }],
+    ]) {
+        for (const name of [chinese, english]) assert.deepEqual(readCommander(`Commander (${name} 14)`), expected, name);
+    }
+    for (const alias of ['建造精通', '研究精通']) {
+        assert.deepEqual(readCommander(`Commander (${alias} 14)`), { DfC: 0, TaC: 0 });
+    }
+    for (const value of ['Commander (未知精通 14)', 'Commander (Defense -1)', 'Commander (Tactical 1.5)',
+        'Commander (Construction ?)', 'Commander (Research)', 'Commander (Defense 99999999999999999)']) {
+        assert.deepEqual(readCommander(value), { DfC: null, TaC: null }, value);
+    }
+});
+
+test('半分捨入邊界接受上下顯示值，超出範圍與矛盾觀測仍不確認', () => {
+    const modifiers = { ...noBonuses, CC: 3 };
+    for (const attack of [4.94, 4.95]) {
+        const result = inferCombatTechnology([{ code: 'FT', attack }, { code: 'CV', attack: 9.89 }], modifiers);
+        assert.equal(result.levels.LAS, 23);
+    }
+    for (const attack of [4.93, 4.96, 4.83]) {
+        const result = inferCombatTechnology([{ code: 'FT', attack }, { code: 'CV', attack: 9.89 }], modifiers);
+        assert.equal(result.levels.LAS, undefined);
+        assert.equal(result.reasons.LAS.key, 'conflictingValues');
+    }
+});
 
 test('指揮中心和战术精通相加，死星加成優先於利維坦', () => {
     const observations = [
