@@ -37,13 +37,16 @@ export default defineConfig({
     }, monkey({
         entry: 'src/main.ts',
         userscript: {
-            name: 'Astro Empires Enhance',
+            name: { '': 'Astro Empires Enhance', en: 'Astro Empires Enhance' },
             namespace: 'astroempires-tools',
             author: 'simonkq1',
             license: 'GPL-3.0-or-later',
             updateURL: userscriptUrl,
             downloadURL: userscriptUrl,
-            description: '在 Borealis 提供戰報 BBCode 分析、艦隊複製、AEBits 匯入、抵達時間與基地數量推算',
+            description: {
+                '': '在 Borealis 提供戰報 BBCode 分析、艦隊複製、AEBits 匯入、抵達時間與基地數量推算',
+                en: 'BBCode battle report analysis, fleet copying, AEBits imports, arrival estimates and base count inference for Borealis.',
+            },
             match: ['https://borealis.astroempires.com/*'],
             'run-at': 'document-idle',
             noframes: true,

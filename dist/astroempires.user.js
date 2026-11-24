@@ -1,16 +1,18 @@
 // ==UserScript==
-// @name         Astro Empires Enhance
-// @namespace    astroempires-tools
-// @version      0.10.0
-// @author       simonkq1
-// @description  在 Borealis 提供戰報 BBCode 分析、艦隊複製、AEBits 匯入、抵達時間與基地數量推算
-// @license      GPL-3.0-or-later
-// @downloadURL  https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
-// @updateURL    https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
-// @match        https://borealis.astroempires.com/*
-// @require      https://cdn.jsdelivr.net/npm/vue@3.5.45/dist/vue.runtime.global.prod.js
-// @grant        none
-// @run-at       document-idle
+// @name            Astro Empires Enhance
+// @name:en         Astro Empires Enhance
+// @namespace       astroempires-tools
+// @version         0.10.0
+// @author          simonkq1
+// @description     在 Borealis 提供戰報 BBCode 分析、艦隊複製、AEBits 匯入、抵達時間與基地數量推算
+// @description:en  BBCode battle report analysis, fleet copying, AEBits imports, arrival estimates and base count inference for Borealis.
+// @license         GPL-3.0-or-later
+// @downloadURL     https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
+// @updateURL       https://raw.githubusercontent.com/simonkq1/AstroEmpires-Enhance/master/dist/astroempires.user.js
+// @match           https://borealis.astroempires.com/*
+// @require         https://cdn.jsdelivr.net/npm/vue@3.5.45/dist/vue.runtime.global.prod.js
+// @grant           none
+// @run-at          document-idle
 // @noframes
 // ==/UserScript==
 
